@@ -41,7 +41,7 @@ onMounted(loadSummary)
         :value="`${summary.total_adults} / ${summary.total_children}`"
       />
       <StatCard label="素食需求" :value="summary.vegetarian_count" />
-      <StatCard label="喜餅需求" :value="summary.cake_count" />
+      <StatCard label="喜帖需求" :value="summary.invitation_count" />
       <StatCard
         label="禮金總額"
         :value="`$${Number(summary.total_gift_amount).toLocaleString()}`"

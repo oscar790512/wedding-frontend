@@ -102,6 +102,9 @@ onMounted(loadGuests)
           <p v-if="guest.allocated_table" class="guest-item__meta">
             桌號：{{ guest.allocated_table }}
           </p>
+          <p v-if="guest.need_invitation && guest.invitation_address" class="guest-item__meta">
+            喜帖地址：{{ guest.invitation_address }}
+          </p>
         </div>
 
         <div class="guest-item__actions">

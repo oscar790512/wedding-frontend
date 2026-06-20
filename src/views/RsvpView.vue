@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 
 import { submitRsvp } from '../api/client'
 
@@ -10,7 +10,8 @@ const form = reactive({
   total_adults: 1,
   total_children: 0,
   diet_notes: '',
-  need_cake: false,
+  need_invitation: false,
+  invitation_address: '',
   blessing_message: '',
 })
 
@@ -18,15 +19,33 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
+watch(
+  () => form.need_invitation,
+  (needInvitation) => {
+    if (!needInvitation) {
+      form.invitation_address = ''
+    }
+  },
+)
+
 async function handleSubmit() {
   errorMessage.value = ''
   successMessage.value = ''
+
+  if (form.need_invitation && !form.invitation_address.trim()) {
+    errorMessage.value = '需要喜帖時請填寫寄送地址'
+    return
+  }
+
   isSubmitting.value = true
 
   try {
     await submitRsvp({
       ...form,
       diet_notes: form.diet_notes.trim() || null,
+      invitation_address: form.need_invitation
+        ? form.invitation_address.trim()
+        : null,
       blessing_message: form.blessing_message.trim() || null,
     })
     successMessage.value = '已收到您的回覆，期待與您見面！'
@@ -110,8 +129,19 @@ async function handleSubmit() {
         </label>
 
         <label class="checkbox-field">
-          <input v-model="form.need_cake" type="checkbox" />
-          <span>需要喜餅</span>
+          <input v-model="form.need_invitation" type="checkbox" />
+          <span>需要喜帖</span>
+        </label>
+
+        <label v-if="form.need_invitation" class="field">
+          <span>喜帖寄送地址 *</span>
+          <textarea
+            v-model="form.invitation_address"
+            rows="3"
+            maxlength="500"
+            required
+            placeholder="請填寫完整收件地址"
+          />
         </label>
       </template>
 
