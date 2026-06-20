@@ -99,6 +99,15 @@ onMounted(loadGuests)
             </span>
           </div>
           <p class="guest-item__phone">{{ guest.phone }}</p>
+          <p v-if="guest.status === 'decline' && guest.will_send_gift" class="guest-item__meta">
+            無法出席 · 仍會包禮金
+          </p>
+          <p v-if="guest.total_children > 0" class="guest-item__meta">
+            小孩 {{ guest.total_children }} 位
+            <template v-if="guest.child_seats > 0">
+              · 兒童座椅 {{ guest.child_seats }} 張
+            </template>
+          </p>
           <p v-if="guest.allocated_table" class="guest-item__meta">
             桌號：{{ guest.allocated_table }}
           </p>
