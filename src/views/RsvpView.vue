@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, watch } from 'vue'
 
+import backgroundImage from '../assets/background.jpg'
 import { submitRsvp } from '../api/client'
 
 const form = reactive({
@@ -40,6 +41,30 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showLineDialog = ref(false)
+let sectionTouchStartX = 0
+let sectionTouchStartY = 0
+
+function normalizePhone(value) {
+  return value.trim()
+}
+
+function validatePhone(value, label) {
+  const trimmed = value.trim()
+
+  if (!trimmed) {
+    return `${label}為必填`
+  }
+
+  if (!/^\d+$/.test(trimmed)) {
+    return `${label}格式不正確，請輸入 10 碼數字`
+  }
+
+  if (trimmed.length !== 10) {
+    return `${label}長度需為 10 碼數字`
+  }
+
+  return ''
+}
 
 watch(
   () => form.need_invitation,
@@ -121,6 +146,12 @@ async function handleSubmit() {
   errorMessage.value = ''
   successMessage.value = ''
 
+  const phoneError = validatePhone(form.phone, '聯絡電話')
+  if (phoneError) {
+    errorMessage.value = phoneError
+    return
+  }
+
   if (form.status === 'attend') {
     if (form.need_invitation && !form.invitation_address.trim()) {
       errorMessage.value = '需要喜帖時請填寫寄送地址'
@@ -153,6 +184,15 @@ async function handleSubmit() {
   ) {
     errorMessage.value = '希望收到喜餅時請填寫收件電話'
     return
+  } else if (
+    form.decline_response === 'request_cake'
+    && !form.use_cake_phone_same
+  ) {
+    const shippingPhoneError = validatePhone(form.shipping_phone, '喜餅收件電話')
+    if (shippingPhoneError) {
+      errorMessage.value = shippingPhoneError
+      return
+    }
   } else if (form.decline_response === 'request_cake' && !form.shipping_address.trim()) {
     errorMessage.value = '希望收到喜餅時請填寫收件地址'
     return
@@ -163,6 +203,7 @@ async function handleSubmit() {
   try {
     await submitRsvp({
       ...form,
+      phone: normalizePhone(form.phone),
       email: form.email.trim() || null,
       guest_category: form.guest_category || null,
       diet_notes: form.diet_notes.trim() || null,
@@ -180,7 +221,7 @@ async function handleSubmit() {
           : null,
       shipping_phone:
         form.status === 'decline' && form.decline_response === 'request_cake'
-          ? (form.use_cake_phone_same ? form.phone.trim() : form.shipping_phone.trim())
+          ? (form.use_cake_phone_same ? normalizePhone(form.phone) : normalizePhone(form.shipping_phone))
           : null,
       shipping_address:
         form.status === 'decline' && form.decline_response === 'request_cake'
@@ -203,6 +244,40 @@ async function handleSubmit() {
 function closeLineDialog() {
   showLineDialog.value = false
 }
+
+function scrollToElement(elementId) {
+  const element = document.getElementById(elementId)
+  if (!element) return
+
+  const navOffset = 72
+  const targetTop = element.getBoundingClientRect().top + window.scrollY - navOffset
+  window.scrollTo({
+    top: targetTop,
+    behavior: 'smooth',
+  })
+}
+
+function scrollToWeddingInfo() {
+  scrollToElement('wedding-info')
+}
+
+function handleSectionTouchStart(event) {
+  const touch = event.touches[0]
+  sectionTouchStartX = touch.clientX
+  sectionTouchStartY = touch.clientY
+}
+
+function handleSectionTouchEnd(event, targetId) {
+  if (!window.matchMedia('(max-width: 640px)').matches) return
+
+  const touch = event.changedTouches[0]
+  const deltaX = Math.abs(touch.clientX - sectionTouchStartX)
+  const deltaY = sectionTouchStartY - touch.clientY
+
+  if (deltaY > 36 && deltaY > deltaX) {
+    scrollToElement(targetId)
+  }
+}
 </script>
 
 <template>
@@ -216,43 +291,87 @@ function closeLineDialog() {
       </div>
     </nav>
 
-    <header class="rsvp-public-title">
-      <div class="container">
+    <header
+      class="rsvp-hero"
+      @touchstart.passive="handleSectionTouchStart"
+      @touchend.passive="handleSectionTouchEnd($event, 'wedding-info')"
+    >
+      <img class="rsvp-hero__image" :src="backgroundImage" alt="祺元與姵妤婚紗照" />
+      <div class="rsvp-hero__shade" aria-hidden="true"></div>
+      <div class="container rsvp-hero__content">
         <p class="eyebrow">Wedding Invitation</p>
-        <h1>誠摯邀請您一同見證我們的重要時刻。</h1>
+        <h1>祺元與姵妤</h1>
         <p class="lead">
-          請協助回覆出席資訊，讓我們能為您準備座位、餐點與喜帖。
+          誠摯邀請您一同見證我們的重要時刻，請協助回覆出席資訊，讓我們能為您準備座位、餐點與喜帖。
         </p>
+        <a class="btn btn-primary rsvp-hero__cta" href="#wedding-info" @click.prevent="scrollToWeddingInfo">開始填寫</a>
       </div>
     </header>
 
-    <main class="section rsvp-main-section">
-      <div class="container">
-        <form class="form-panel" @submit.prevent="handleSubmit">
+    <main id="rsvp-form" class="section rsvp-main-section">
+      <div class="container rsvp-content-grid">
+        <aside
+          id="wedding-info"
+          class="rsvp-info-panel"
+          aria-label="婚禮資訊"
+          @touchstart.passive="handleSectionTouchStart"
+          @touchend.passive="handleSectionTouchEnd($event, 'questionnaire')"
+        >
+          <p class="eyebrow">Save the Date</p>
+          <h2>期待在婚禮現場與您相見。</h2>
+          <p class="lead">
+            填寫時間約 1 分鐘。若無法出席，也可以留下祝福與喜餅寄送資訊。
+          </p>
+          <dl class="rsvp-info-list">
+            <div>
+              <dt>日期</dt>
+              <dd>2026年11月8日</dd>
+            </div>
+            <div>
+              <dt>時間</dt>
+              <dd>中午 12:00 入場，12:30 開始</dd>
+            </div>
+            <div>
+              <dt>地點</dt>
+              <dd>老新台菜 十全店</dd>
+            </div>
+            <div>
+              <dt>地址</dt>
+              <dd>高雄市三民區德西里十全三路265號</dd>
+            </div>
+            <div>
+              <dt>回覆內容</dt>
+              <dd>出席人數、飲食需求、喜帖或喜餅寄送資訊</dd>
+            </div>
+          </dl>
+        </aside>
+
+        <form id="questionnaire" class="form-panel rsvp-form-panel" @submit.prevent="handleSubmit">
           <div class="section-head">
             <div>
-              <p class="eyebrow">RSVP</p>
               <h2>請告訴我們您的出席資訊。</h2>
             </div>
-            <span class="badge badge-neutral">必填欄位已標示</span>
+            <span class="badge badge-neutral">* 為必填欄位</span>
           </div>
 
           <div class="form-grid two">
             <div class="field">
-              <label for="guest-name">姓名</label>
+              <label for="guest-name">姓名 <span class="required-mark">*</span></label>
               <input id="guest-name" v-model="form.name" class="field-control" required maxlength="100" placeholder="請輸入姓名" />
             </div>
 
         <div class="field">
-          <label for="guest-phone">聯絡電話</label>
+          <label for="guest-phone">聯絡電話 <span class="required-mark">*</span></label>
         <input
             id="guest-phone"
           v-model="form.phone"
             class="field-control"
           required
           inputmode="tel"
-          maxlength="20"
+          maxlength="10"
+          pattern="\d{10}"
           placeholder="09xxxxxxxx"
+          title="請輸入 10 碼電話號碼"
         />
         </div>
 
@@ -263,14 +382,13 @@ function closeLineDialog() {
             v-model="form.email"
             class="field-control"
             type="email"
-            required
             maxlength="255"
             placeholder="用於寄送電子喜帖"
           />
         </div>
 
         <div class="field">
-          <label for="guest-category">與新人關係</label>
+          <label for="guest-category">與新人關係 <span class="required-mark">*</span></label>
           <select
             id="guest-category"
             v-model="form.guest_category"
@@ -290,7 +408,7 @@ function closeLineDialog() {
       </div>
 
       <div class="field rsvp-mode-field">
-        <span class="field-label">出席意願</span>
+        <span class="field-label">出席意願 <span class="required-mark">*</span></span>
         <div class="segmented">
           <button
             type="button"
@@ -312,7 +430,7 @@ function closeLineDialog() {
       <section v-if="form.status === 'attend'" class="form-grid">
         <div class="form-grid two">
           <div class="field">
-            <label for="adult-count">大人人數</label>
+            <label for="adult-count">大人人數 <span class="required-mark">*</span></label>
             <input
               id="adult-count"
               v-model.number="form.total_adults"
@@ -396,7 +514,7 @@ function closeLineDialog() {
         </label>
 
         <div v-if="form.need_invitation" class="field">
-          <label for="invitation-address">喜帖寄送地址</label>
+          <label for="invitation-address">喜帖寄送地址 <span class="required-mark">*</span></label>
           <textarea
             id="invitation-address"
             v-model="form.invitation_address"
@@ -411,7 +529,7 @@ function closeLineDialog() {
 
       <section v-else-if="form.status === 'decline'" class="form-grid">
         <div class="field">
-          <label for="decline-response">無法出席回覆</label>
+          <label for="decline-response">無法出席回覆 <span class="required-mark">*</span></label>
           <select id="decline-response" v-model="form.decline_response" class="field-control">
             <option value="" disabled>請選擇回覆選項</option>
             <option value="blessing_only">無法到場，在此致上誠摯的祝福</option>
@@ -423,7 +541,7 @@ function closeLineDialog() {
           <div class="form-grid two">
             <div class="field">
               <div class="field-heading">
-                <label for="cake-recipient">喜餅收件人</label>
+                <label for="cake-recipient">喜餅收件人 <span v-if="!form.use_cake_recipient_same" class="required-mark">*</span></label>
                 <label class="inline-check">
                   <input v-model="form.use_cake_recipient_same" type="checkbox" />
                   同填寫人
@@ -442,7 +560,7 @@ function closeLineDialog() {
 
             <div class="field">
               <div class="field-heading">
-                <label for="cake-phone">喜餅收件電話</label>
+                <label for="cake-phone">喜餅收件電話 <span v-if="!form.use_cake_phone_same" class="required-mark">*</span></label>
                 <label class="inline-check">
                   <input v-model="form.use_cake_phone_same" type="checkbox" />
                   同填寫人
@@ -454,14 +572,16 @@ function closeLineDialog() {
                 class="field-control"
                 :disabled="form.use_cake_phone_same"
                 inputmode="tel"
-                maxlength="20"
+                maxlength="10"
+                pattern="\d{10}"
                 :placeholder="form.use_cake_phone_same ? form.phone || '同填寫人電話' : '請輸入收件電話'"
                 :required="!form.use_cake_phone_same"
+                title="請輸入 10 碼電話號碼"
               />
             </div>
           </div>
 
-          <label for="cake-address">喜餅收件地址</label>
+          <label for="cake-address">喜餅收件地址 <span class="required-mark">*</span></label>
           <textarea
             id="cake-address"
             v-model="form.shipping_address"
