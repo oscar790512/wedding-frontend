@@ -1,5 +1,12 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
+function isNetworkError(error) {
+  return (
+    error instanceof TypeError
+    && ['Failed to fetch', 'Load failed'].includes(error.message)
+  )
+}
+
 async function parseError(response) {
   try {
     const data = await response.json()
@@ -24,10 +31,19 @@ export async function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${token}`
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers,
-  })
+  let response
+
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers,
+    })
+  } catch (error) {
+    if (isNetworkError(error)) {
+      throw new Error('目前無法連線到報名系統，請稍後再試或聯絡我們。')
+    }
+    throw error
+  }
 
   if (!response.ok) {
     throw new Error(await parseError(response))
