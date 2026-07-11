@@ -6,21 +6,40 @@ import { submitRsvp } from '../api/client'
 const form = reactive({
   name: '',
   phone: '',
+  email: '',
+  guest_category: '',
   status: 'attend',
   total_adults: 1,
   total_children: 0,
+  need_vegetarian: false,
+  vegetarian_count: 0,
+  allergy_notes: '',
   child_seats: 0,
   diet_notes: '',
   need_invitation: false,
   invitation_address: '',
   decline_response: '',
+  shipping_recipient: '',
+  shipping_phone: '',
   shipping_address: '',
+  use_cake_recipient_same: true,
+  use_cake_phone_same: true,
   blessing_message: '',
 })
+
+const relationshipOptions = [
+  '男方同事',
+  '女方同事',
+  '男方朋友',
+  '女方朋友',
+  '男方家人',
+  '女方家人',
+]
 
 const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const showLineDialog = ref(false)
 
 watch(
   () => form.need_invitation,
@@ -37,6 +56,30 @@ watch(
     if (totalChildren <= 0) {
       form.child_seats = 0
     }
+    const totalGuests = form.total_adults + totalChildren
+    if (form.vegetarian_count > totalGuests) {
+      form.vegetarian_count = totalGuests
+    }
+  },
+)
+
+watch(
+  () => form.total_adults,
+  (totalAdults) => {
+    const totalGuests = totalAdults + form.total_children
+    if (form.vegetarian_count > totalGuests) {
+      form.vegetarian_count = totalGuests
+    }
+  },
+)
+
+watch(
+  () => form.need_vegetarian,
+  (needVegetarian) => {
+    if (!needVegetarian) {
+      form.vegetarian_count = 0
+      form.allergy_notes = ''
+    }
   },
 )
 
@@ -46,6 +89,9 @@ watch(
     if (status === 'decline') {
       form.total_adults = 0
       form.total_children = 0
+      form.need_vegetarian = false
+      form.vegetarian_count = 0
+      form.allergy_notes = ''
       form.child_seats = 0
       form.diet_notes = ''
       form.need_invitation = false
@@ -64,6 +110,8 @@ watch(
   () => form.decline_response,
   (declineResponse) => {
     if (declineResponse !== 'request_cake') {
+      form.shipping_recipient = ''
+      form.shipping_phone = ''
       form.shipping_address = ''
     }
   },
@@ -83,8 +131,27 @@ async function handleSubmit() {
       errorMessage.value = '兒童座椅數量不可超過小孩人數'
       return
     }
+
+    if (form.vegetarian_count > form.total_adults + form.total_children) {
+      errorMessage.value = '素食人數不可超過總出席人數'
+      return
+    }
   } else if (!form.decline_response) {
     errorMessage.value = '無法出席時請選擇一個回覆選項'
+    return
+  } else if (
+    form.decline_response === 'request_cake'
+    && !form.use_cake_recipient_same
+    && !form.shipping_recipient.trim()
+  ) {
+    errorMessage.value = '希望收到喜餅時請填寫收件人'
+    return
+  } else if (
+    form.decline_response === 'request_cake'
+    && !form.use_cake_phone_same
+    && !form.shipping_phone.trim()
+  ) {
+    errorMessage.value = '希望收到喜餅時請填寫收件電話'
     return
   } else if (form.decline_response === 'request_cake' && !form.shipping_address.trim()) {
     errorMessage.value = '希望收到喜餅時請填寫收件地址'
@@ -96,13 +163,25 @@ async function handleSubmit() {
   try {
     await submitRsvp({
       ...form,
+      email: form.email.trim() || null,
+      guest_category: form.guest_category || null,
       diet_notes: form.diet_notes.trim() || null,
+      allergy_notes: form.allergy_notes.trim() || null,
+      vegetarian_count: form.need_vegetarian ? form.vegetarian_count : 0,
       child_seats: form.total_children > 0 ? form.child_seats : 0,
       invitation_address: form.need_invitation
         ? form.invitation_address.trim()
         : null,
       decline_response:
         form.status === 'decline' ? form.decline_response : null,
+      shipping_recipient:
+        form.status === 'decline' && form.decline_response === 'request_cake'
+          ? (form.use_cake_recipient_same ? form.name.trim() : form.shipping_recipient.trim())
+          : null,
+      shipping_phone:
+        form.status === 'decline' && form.decline_response === 'request_cake'
+          ? (form.use_cake_phone_same ? form.phone.trim() : form.shipping_phone.trim())
+          : null,
       shipping_address:
         form.status === 'decline' && form.decline_response === 'request_cake'
           ? form.shipping_address.trim()
@@ -113,11 +192,16 @@ async function handleSubmit() {
       form.status === 'decline'
         ? '已收到您的回覆，謝謝您的祝福！'
         : '已收到您的回覆，期待與您見面！'
+    showLineDialog.value = true
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isSubmitting.value = false
   }
+}
+
+function closeLineDialog() {
+  showLineDialog.value = false
 }
 </script>
 
@@ -171,6 +255,38 @@ async function handleSubmit() {
           placeholder="09xxxxxxxx"
         />
         </div>
+
+        <div class="field">
+          <label for="guest-email">Email</label>
+          <input
+            id="guest-email"
+            v-model="form.email"
+            class="field-control"
+            type="email"
+            required
+            maxlength="255"
+            placeholder="用於寄送電子喜帖"
+          />
+        </div>
+
+        <div class="field">
+          <label for="guest-category">與新人關係</label>
+          <select
+            id="guest-category"
+            v-model="form.guest_category"
+            class="field-control"
+            required
+          >
+            <option value="" disabled>請選擇關係</option>
+            <option
+              v-for="relationship in relationshipOptions"
+              :key="relationship"
+              :value="relationship"
+            >
+              {{ relationship }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="field rsvp-mode-field">
@@ -218,29 +334,59 @@ async function handleSubmit() {
           </div>
         </div>
 
-        <div class="form-grid two">
+        <div v-if="form.total_children > 0" class="field">
+          <label for="child-seats">兒童座椅</label>
+        <input
+            id="child-seats"
+          v-model.number="form.child_seats"
+            class="field-control"
+          type="number"
+          min="0"
+          :max="form.total_children"
+          placeholder="需要幾張兒童座椅"
+        />
+        </div>
+
+        <label class="toggle">
+          <input v-model="form.need_vegetarian" type="checkbox" />
+          <span aria-hidden="true"></span>
+          需要素食
+        </label>
+
+        <div v-if="form.need_vegetarian" class="form-grid two">
           <div class="field">
-            <label for="child-seats">兒童座椅</label>
-          <input
-              id="child-seats"
-            v-model.number="form.child_seats"
+            <label for="vegetarian-count">素食人數</label>
+            <input
+              id="vegetarian-count"
+              v-model.number="form.vegetarian_count"
               class="field-control"
-            type="number"
-            min="0"
-            :max="form.total_children"
-            placeholder="需要幾張兒童座椅"
-          />
+              type="number"
+              min="0"
+              :max="form.total_adults + form.total_children"
+              placeholder="需要幾份素食"
+            />
           </div>
           <div class="field">
-            <label for="diet-notes">飲食需求</label>
+            <label for="allergy-notes">過敏 / 特殊飲食</label>
+            <input
+              id="allergy-notes"
+              v-model="form.allergy_notes"
+              class="field-control"
+              maxlength="500"
+              placeholder="例如：花生過敏、不吃牛"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="diet-notes">其他飲食備註</label>
           <input
-              id="diet-notes"
+            id="diet-notes"
             v-model="form.diet_notes"
-              class="field-control"
+            class="field-control"
             maxlength="500"
-            placeholder="例如：素食、過敏食材"
+            placeholder="其他需要新人知道的飲食需求"
           />
-          </div>
         </div>
 
         <label class="toggle">
@@ -274,6 +420,47 @@ async function handleSubmit() {
         </div>
 
         <div v-if="form.decline_response === 'request_cake'" class="field">
+          <div class="form-grid two">
+            <div class="field">
+              <div class="field-heading">
+                <label for="cake-recipient">喜餅收件人</label>
+                <label class="inline-check">
+                  <input v-model="form.use_cake_recipient_same" type="checkbox" />
+                  同填寫人
+                </label>
+              </div>
+              <input
+                id="cake-recipient"
+                v-model="form.shipping_recipient"
+                class="field-control"
+                :disabled="form.use_cake_recipient_same"
+                maxlength="100"
+                :placeholder="form.use_cake_recipient_same ? form.name || '同填寫人姓名' : '請輸入收件人'"
+                :required="!form.use_cake_recipient_same"
+              />
+            </div>
+
+            <div class="field">
+              <div class="field-heading">
+                <label for="cake-phone">喜餅收件電話</label>
+                <label class="inline-check">
+                  <input v-model="form.use_cake_phone_same" type="checkbox" />
+                  同填寫人
+                </label>
+              </div>
+              <input
+                id="cake-phone"
+                v-model="form.shipping_phone"
+                class="field-control"
+                :disabled="form.use_cake_phone_same"
+                inputmode="tel"
+                maxlength="20"
+                :placeholder="form.use_cake_phone_same ? form.phone || '同填寫人電話' : '請輸入收件電話'"
+                :required="!form.use_cake_phone_same"
+              />
+            </div>
+          </div>
+
           <label for="cake-address">喜餅收件地址</label>
           <textarea
             id="cake-address"
@@ -300,13 +487,35 @@ async function handleSubmit() {
       </div>
 
       <p v-if="errorMessage" class="message message--error">{{ errorMessage }}</p>
-      <div v-if="successMessage" class="success-note is-visible">
-        <p>{{ successMessage }}</p>
-        <div class="line-follow-card">
+      <p v-if="successMessage" class="success-note is-visible">
+        {{ successMessage }}
+      </p>
+
+      <div class="actions">
+      <button class="btn btn-primary" type="submit" :disabled="isSubmitting">
+          {{ isSubmitting ? '送出中...' : '送出回覆' }}
+      </button>
+      </div>
+    </form>
+      </div>
+    </main>
+
+    <div
+      v-if="showLineDialog"
+      class="dialog-backdrop"
+      role="presentation"
+      @click.self="closeLineDialog"
+    >
+      <section class="dialog-card line-dialog" role="dialog" aria-modal="true">
+        <div class="line-dialog__head">
           <div>
-            <strong>加入 Line 官方帳號</strong>
-            <span>後續婚禮資訊與即時聯繫會透過 Line 更新。</span>
+            <p class="eyebrow">Line Official</p>
+            <h2>加入 Line 官方帳號</h2>
+            <p class="lead">後續婚禮資訊與即時聯繫會透過 Line 更新。</p>
           </div>
+        </div>
+
+        <div class="line-follow-card">
           <a
             class="line-follow-card__mobile"
             href="https://lin.ee/PvW0Voh"
@@ -326,15 +535,13 @@ async function handleSubmit() {
             alt="Line 官方帳號 QR Code"
           />
         </div>
-      </div>
 
-      <div class="actions">
-      <button class="btn btn-primary" type="submit" :disabled="isSubmitting">
-          {{ isSubmitting ? '送出中...' : '送出回覆' }}
-      </button>
-      </div>
-    </form>
-      </div>
-    </main>
+        <div class="line-dialog__actions">
+          <button class="btn btn-ghost" type="button" @click="closeLineDialog">
+            關閉
+          </button>
+        </div>
+      </section>
+    </div>
   </div>
 </template>

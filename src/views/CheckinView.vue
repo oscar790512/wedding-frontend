@@ -148,6 +148,26 @@ function closeTableDialog() {
   selectedTable.value = null
 }
 
+function dietSummary(guest) {
+  const items = []
+  const vegetarianCount =
+    Number(guest.vegetarian_count || 0)
+    || Number(guest.vegetarian_adults || 0)
+    + Number(guest.vegetarian_children || 0)
+
+  if (vegetarianCount > 0) {
+    items.push(`素食 ${vegetarianCount}`)
+  }
+  if (guest.allergy_notes) {
+    items.push(`特殊：${guest.allergy_notes}`)
+  }
+  if (guest.diet_notes) {
+    items.push(guest.diet_notes)
+  }
+
+  return items.join(' / ')
+}
+
 function handleArrivedToggle(guest) {
   updateGuestField(guest.id, { is_arrived: !guest.is_arrived })
 }
@@ -378,7 +398,7 @@ onMounted(loadGuests)
               <template v-if="guest.actual_adults !== null || guest.actual_children !== null">
                 · 實到 {{ guestAttendeeCount(guest) }} 位
               </template>
-              <template v-if="guest.diet_notes"> · {{ guest.diet_notes }}</template>
+              <template v-if="dietSummary(guest)"> · {{ dietSummary(guest) }}</template>
             </p>
             <p
               v-if="guest.status === 'decline' && guest.decline_response"

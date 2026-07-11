@@ -79,6 +79,26 @@ function shippingLabel(guest) {
   return '無寄送待辦'
 }
 
+function dietSummary(guest) {
+  const items = []
+  const vegetarianCount =
+    Number(guest.vegetarian_count || 0)
+    || Number(guest.vegetarian_adults || 0)
+    + Number(guest.vegetarian_children || 0)
+
+  if (vegetarianCount > 0) {
+    items.push(`素食 ${vegetarianCount}`)
+  }
+  if (guest.allergy_notes) {
+    items.push(`特殊：${guest.allergy_notes}`)
+  }
+  if (guest.diet_notes) {
+    items.push(guest.diet_notes)
+  }
+
+  return items.join(' / ')
+}
+
 let searchTimer
 watch(searchQuery, () => {
   clearTimeout(searchTimer)
@@ -115,13 +135,13 @@ onMounted(loadGuests)
     <section class="panel guest-toolbar">
       <div class="form-grid two">
         <div class="field">
-          <label for="guest-search">搜尋姓名、電話、分類或桌號</label>
+          <label for="guest-search">搜尋姓名、電話、Email、分類或桌號</label>
           <input
             id="guest-search"
             v-model="searchQuery"
             class="field-control"
             type="search"
-            placeholder="例如：林怡君、0912、女方親友、A 主桌旁"
+            placeholder="例如：林怡君、0912、email、女方親友、A 主桌旁"
             autocomplete="off"
           />
         </div>
@@ -160,7 +180,13 @@ onMounted(loadGuests)
       >
         <div>
           <p class="guest-name">{{ guest.name }}</p>
-          <p class="guest-sub">{{ guest.phone }}</p>
+          <p class="guest-sub">
+            {{ guest.phone }}
+            <template v-if="guest.email"> · {{ guest.email }}</template>
+          </p>
+          <p v-if="guest.guest_category" class="guest-sub">
+            {{ guest.guest_category }}
+          </p>
         </div>
 
         <div class="status-line">
@@ -181,7 +207,7 @@ onMounted(loadGuests)
         </div>
 
         <div class="guest-sub">
-          <span v-if="guest.diet_notes">飲食：{{ guest.diet_notes }}</span>
+          <span v-if="dietSummary(guest)">飲食：{{ dietSummary(guest) }}</span>
           <span v-else-if="guest.admin_notes">備註：{{ guest.admin_notes }}</span>
           <span v-else>無特殊備註</span>
         </div>
