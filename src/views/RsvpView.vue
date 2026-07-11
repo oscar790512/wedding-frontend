@@ -211,7 +211,7 @@ function closeLineDialog() {
       <div class="container nav-inner">
         <div class="brand">
           <span class="brand-mark">囍</span>
-          <span>婚禮邀請</span>
+          <span>祺元(Oscar) 與姵妤婚禮邀請</span>
         </div>
       </div>
     </nav>
