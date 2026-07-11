@@ -16,9 +16,9 @@ defineProps({
 </script>
 
 <template>
-  <article class="stat-card">
-    <p class="stat-card__label">{{ label }}</p>
-    <p class="stat-card__value">{{ value }}</p>
-    <p v-if="hint" class="stat-card__hint">{{ hint }}</p>
+  <article class="metric">
+    <p class="metric-label">{{ label }}</p>
+    <p class="metric-value">{{ value }}</p>
+    <p v-if="hint" class="metric-note">{{ hint }}</p>
   </article>
 </template>

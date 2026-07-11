@@ -3,15 +3,29 @@ import { useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
 
-defineProps({
+const props = defineProps({
   title: {
     type: String,
     required: true,
+  },
+  eyebrow: {
+    type: String,
+    default: 'Wedding Admin',
+  },
+  subtitle: {
+    type: String,
+    default: '',
   },
 })
 
 const router = useRouter()
 const { username, clearSession } = useAuth()
+
+const navItems = [
+  { to: '/admin/dashboard', label: '統計大盤' },
+  { to: '/admin/guests', label: '賓客管理' },
+  { to: '/admin/operations', label: '現場工作台' },
+]
 
 function logout() {
   clearSession()
@@ -20,27 +34,55 @@ function logout() {
 </script>
 
 <template>
-  <div class="admin-page">
-    <header class="admin-header">
-      <div>
-        <p class="eyebrow">Wedding Admin</p>
-        <h1>{{ title }}</h1>
-      </div>
-      <div class="admin-header__actions">
-        <span class="admin-user">{{ username }}</span>
-        <button type="button" class="btn btn-ghost" @click="logout">
-          登出
-        </button>
-      </div>
-    </header>
+  <div class="admin-shell">
+    <nav class="nav">
+      <div class="container nav-inner">
+        <RouterLink class="brand" to="/admin/dashboard">
+          <span class="brand-mark">囍</span>
+          <span>Wedding Admin</span>
+        </RouterLink>
 
-    <nav class="admin-nav">
-      <RouterLink to="/admin/dashboard">統計大盤</RouterLink>
-      <RouterLink to="/admin/checkin">現場簽到</RouterLink>
+        <div class="nav-links">
+          <RouterLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+          >
+            {{ item.label }}
+          </RouterLink>
+          <button type="button" @click="logout">
+            登出
+          </button>
+        </div>
+      </div>
     </nav>
 
-    <main class="admin-content">
-      <slot />
-    </main>
+    <div class="admin-layout">
+      <aside class="sidebar">
+        <p class="eyebrow">{{ props.eyebrow }}</p>
+        <h3>{{ props.title }}</h3>
+
+        <div class="side-group">
+          <RouterLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            class="side-link"
+          >
+            <span>{{ item.label }}</span>
+            <span v-if="item.label === props.title">•</span>
+          </RouterLink>
+        </div>
+
+        <p v-if="props.subtitle" class="sidebar-note">
+          {{ props.subtitle }}
+        </p>
+        <p class="sidebar-user">登入：{{ username }}</p>
+      </aside>
+
+      <main class="admin-main">
+        <slot />
+      </main>
+    </div>
   </div>
 </template>

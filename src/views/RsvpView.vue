@@ -104,149 +104,182 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="rsvp-page">
-    <div class="rsvp-hero">
-      <p class="eyebrow">Wedding Invitation</p>
-      <h1>誠摯邀請您<br />一同見證我們的幸福</h1>
-      <p class="rsvp-hero__subtitle">
-        請填寫以下資料，讓我們為您準備座位與餐點。
-      </p>
-    </div>
+  <div class="public-rsvp">
+    <nav class="nav rsvp-public-nav">
+      <div class="container nav-inner">
+        <div class="brand">
+          <span class="brand-mark">囍</span>
+          <span>婚禮邀請</span>
+        </div>
+      </div>
+    </nav>
 
-    <form class="card rsvp-form" @submit.prevent="handleSubmit">
-      <label class="field">
-        <span>姓名 *</span>
-        <input v-model="form.name" required maxlength="100" placeholder="請輸入姓名" />
-      </label>
+    <header class="rsvp-public-title">
+      <div class="container">
+        <p class="eyebrow">Wedding Invitation</p>
+        <h1>誠摯邀請您一同見證我們的重要時刻。</h1>
+        <p class="lead">
+          請協助回覆出席資訊，讓我們能為您準備座位、餐點與喜帖。
+        </p>
+      </div>
+    </header>
 
-      <label class="field">
-        <span>聯絡電話 *</span>
+    <main class="section rsvp-main-section">
+      <div class="container">
+        <form class="form-panel" @submit.prevent="handleSubmit">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">RSVP</p>
+              <h2>請告訴我們您的出席資訊。</h2>
+            </div>
+            <span class="badge badge-neutral">必填欄位已標示</span>
+          </div>
+
+          <div class="form-grid two">
+            <div class="field">
+              <label for="guest-name">姓名</label>
+              <input id="guest-name" v-model="form.name" class="field-control" required maxlength="100" placeholder="請輸入姓名" />
+            </div>
+
+        <div class="field">
+          <label for="guest-phone">聯絡電話</label>
         <input
+            id="guest-phone"
           v-model="form.phone"
+            class="field-control"
           required
           inputmode="tel"
           maxlength="20"
           placeholder="09xxxxxxxx"
         />
-      </label>
-
-      <fieldset class="field">
-        <legend>出席意願 *</legend>
-        <div class="radio-group">
-          <label class="radio-chip">
-            <input v-model="form.status" type="radio" value="attend" />
-            <span>我會出席</span>
-          </label>
-          <label class="radio-chip">
-            <input v-model="form.status" type="radio" value="decline" />
-            <span>無法出席</span>
-          </label>
         </div>
-      </fieldset>
+      </div>
 
-      <template v-if="form.status === 'attend'">
-        <div class="field-row">
-          <label class="field">
-            <span>大人數 *</span>
+      <div class="field rsvp-mode-field">
+        <span class="field-label">出席意願</span>
+        <div class="segmented">
+          <button
+            type="button"
+            :class="{ 'is-active': form.status === 'attend' }"
+            @click="form.status = 'attend'"
+          >
+            我會出席
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': form.status === 'decline' }"
+            @click="form.status = 'decline'"
+          >
+            無法出席
+          </button>
+        </div>
+      </div>
+
+      <section v-if="form.status === 'attend'" class="form-grid">
+        <div class="form-grid two">
+          <div class="field">
+            <label for="adult-count">大人人數</label>
             <input
+              id="adult-count"
               v-model.number="form.total_adults"
+              class="field-control"
               type="number"
               min="1"
               required
             />
-          </label>
-          <label class="field">
-            <span>小孩數</span>
+          </div>
+          <div class="field">
+            <label for="child-count">小孩人數</label>
             <input
+              id="child-count"
               v-model.number="form.total_children"
+              class="field-control"
               type="number"
               min="0"
             />
-          </label>
+          </div>
         </div>
 
-        <label v-if="form.total_children > 0" class="field">
-          <span>兒童座椅數量 *</span>
+        <div class="form-grid two">
+          <div class="field">
+            <label for="child-seats">兒童座椅</label>
           <input
+              id="child-seats"
             v-model.number="form.child_seats"
+              class="field-control"
             type="number"
             min="0"
             :max="form.total_children"
-            required
             placeholder="需要幾張兒童座椅"
           />
-        </label>
-
-        <label class="field">
-          <span>飲食需求</span>
+          </div>
+          <div class="field">
+            <label for="diet-notes">飲食需求</label>
           <input
+              id="diet-notes"
             v-model="form.diet_notes"
+              class="field-control"
             maxlength="500"
             placeholder="例如：素食、過敏食材"
           />
-        </label>
+          </div>
+        </div>
 
-        <label class="checkbox-field">
+        <label class="toggle">
           <input v-model="form.need_invitation" type="checkbox" />
-          <span>需要喜帖</span>
+          <span aria-hidden="true"></span>
+          需要寄送喜帖
         </label>
 
-        <label v-if="form.need_invitation" class="field">
-          <span>喜帖寄送地址 *</span>
+        <div v-if="form.need_invitation" class="field">
+          <label for="invitation-address">喜帖寄送地址</label>
           <textarea
+            id="invitation-address"
             v-model="form.invitation_address"
+            class="field-control"
             rows="3"
             maxlength="500"
             required
             placeholder="請填寫完整收件地址"
           />
-        </label>
-      </template>
+        </div>
+      </section>
 
-      <template v-else-if="form.status === 'decline'">
-        <fieldset class="field">
-          <legend>無法出席回覆 *</legend>
-          <div class="radio-group radio-group--stacked">
-            <label class="radio-chip">
-              <input
-                v-model="form.decline_response"
-                required
-                type="radio"
-                value="blessing_only"
-              />
-              <span>無法到場，在此致上誠摯的祝福</span>
-            </label>
-            <label class="radio-chip">
-              <input
-                v-model="form.decline_response"
-                required
-                type="radio"
-                value="request_cake"
-              />
-              <span>無法到場，此外我希望收到喜餅祝福你們分享的喜悅！</span>
-            </label>
-          </div>
-        </fieldset>
-      </template>
+      <section v-else-if="form.status === 'decline'" class="form-grid">
+        <div class="field">
+          <label for="decline-response">無法出席回覆</label>
+          <select id="decline-response" v-model="form.decline_response" class="field-control">
+            <option value="" disabled>請選擇回覆選項</option>
+            <option value="blessing_only">無法到場，在此致上誠摯的祝福</option>
+            <option value="request_cake">無法到場，希望收到喜餅分享喜悅</option>
+          </select>
+        </div>
+      </section>
 
-      <label class="field">
-        <span>祝福留言</span>
+      <div class="field rsvp-blessing-field">
+        <label for="blessing">祝福留言</label>
         <textarea
+          id="blessing"
           v-model="form.blessing_message"
+          class="field-control"
           rows="4"
           maxlength="1000"
           placeholder="想對新人說的話..."
         />
-      </label>
+      </div>
 
       <p v-if="errorMessage" class="message message--error">{{ errorMessage }}</p>
-      <p v-if="successMessage" class="message message--success">
+      <p v-if="successMessage" class="success-note is-visible">
         {{ successMessage }}
       </p>
 
+      <div class="actions">
       <button class="btn btn-primary" type="submit" :disabled="isSubmitting">
-        {{ isSubmitting ? '送出中...' : '送出 RSVP' }}
+          {{ isSubmitting ? '送出中...' : '送出回覆' }}
       </button>
+      </div>
     </form>
+      </div>
+    </main>
   </div>
 </template>

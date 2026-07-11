@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 import CheckinView from '../views/CheckinView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import GuestsView from '../views/GuestsView.vue'
 import LoginView from '../views/LoginView.vue'
 import RsvpView from '../views/RsvpView.vue'
 
@@ -20,6 +21,16 @@ const router = createRouter({
     },
     {
       path: '/admin/checkin',
+      redirect: '/admin/operations',
+    },
+    {
+      path: '/admin/guests',
+      name: 'guests',
+      component: GuestsView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/operations',
       name: 'checkin',
       component: CheckinView,
       meta: { requiresAuth: true },

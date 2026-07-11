@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { fetchGuests, patchGuest } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
@@ -9,6 +9,66 @@ const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 const pendingGiftTimers = new Map()
+const attendingOnly = ref(true)
+
+const visibleGuests = computed(() =>
+  guests.value.filter((guest) =>
+    attendingOnly.value ? guest.status === 'attend' : true,
+  ),
+)
+
+const tableSummary = computed(() => {
+  const counters = new Map()
+
+  for (const guest of guests.value) {
+    if (guest.status !== 'attend') continue
+    const tableName = guest.allocated_table || '未分桌'
+    const groupSize = Number(guest.total_adults || 0) + Number(guest.total_children || 0)
+    counters.set(tableName, (counters.get(tableName) || 0) + groupSize)
+  }
+
+  return Array.from(counters.entries())
+    .map(([name, attendees]) => ({ name, attendees }))
+    .sort((a, b) => b.attendees - a.attendees)
+    .slice(0, 4)
+})
+
+const tableCapacityRows = computed(() => {
+  const rows = tableSummary.value.length
+    ? tableSummary.value
+    : [{ name: '未分桌', attendees: 0 }]
+
+  return rows.map((table) => ({
+    ...table,
+    capacity: table.name === '未分桌' ? Math.max(table.attendees, 36) : 12,
+    percent:
+      table.name === '未分桌'
+        ? 40
+        : Math.min(Math.round((table.attendees / 12) * 100), 100),
+  }))
+})
+
+const shippingSummary = computed(() => {
+  const invitationPending = guests.value.filter(
+    (guest) => guest.need_invitation && !guest.invitation_address,
+  ).length
+  const invitationReady = guests.value.filter(
+    (guest) => guest.need_invitation && guest.invitation_address,
+  ).length
+  const cakePending = guests.value.filter(
+    (guest) => guest.decline_response === 'request_cake' && !guest.invitation_address,
+  ).length
+  const cakeFollowUp = guests.value.filter(
+    (guest) => guest.decline_response === 'request_cake',
+  ).length
+
+  return [
+    { label: '喜帖待確認地址', value: invitationPending },
+    { label: '喜帖可處理寄送', value: invitationReady },
+    { label: '喜餅待補地址', value: cakePending },
+    { label: '喜餅需求總數', value: cakeFollowUp },
+  ]
+})
 
 async function loadGuests() {
   isLoading.value = true
@@ -38,6 +98,12 @@ async function updateGuestField(guestId, payload) {
 
 function handleArrivedChange(guest, isArrived) {
   updateGuestField(guest.id, { is_arrived: isArrived })
+}
+
+function handleMarkArrived(guest) {
+  if (!guest.is_arrived) {
+    updateGuestField(guest.id, { is_arrived: true })
+  }
 }
 
 function handleGiftInput(guest, value) {
@@ -83,78 +149,136 @@ onMounted(loadGuests)
 </script>
 
 <template>
-  <AdminLayout title="現場簽到 / 收禮">
-    <div class="checkin-search card">
-      <label class="field">
-        <span>搜尋賓客（姓名或電話）</span>
-        <input
-          v-model="searchQuery"
-          type="search"
-          placeholder="輸入關鍵字..."
-          autocomplete="off"
-        />
-      </label>
-    </div>
+  <AdminLayout
+    title="現場工作台"
+    eyebrow="Operations"
+    subtitle="桌次、寄送、簽到、禮金"
+  >
+    <header class="admin-top">
+      <div>
+        <p class="eyebrow">Operations</p>
+        <h1>桌次、寄送與現場簽到</h1>
+        <p class="lead">婚禮當天可交給工作人員操作的桌號、簽到與禮金工作台。</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-primary" type="button">現場模式</button>
+      </div>
+    </header>
 
-    <p v-if="errorMessage" class="message message--error">{{ errorMessage }}</p>
-    <p v-if="isLoading" class="message">載入中...</p>
-
-    <ul v-else class="guest-list">
-      <li v-for="guest in guests" :key="guest.id" class="guest-item card">
-        <div class="guest-item__info">
-          <div class="guest-item__header">
-            <h2>{{ guest.name }}</h2>
-            <span class="badge" :class="`badge--${guest.status}`">
-              {{ statusLabel(guest.status) }}
-            </span>
+    <section class="ops-grid">
+      <div class="ops-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Table Planning</p>
+            <h2>桌次容量</h2>
           </div>
-          <p class="guest-item__phone">{{ guest.phone }}</p>
-          <p
-            v-if="guest.status === 'decline' && guest.decline_response"
-            class="guest-item__meta"
+          <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
+        </div>
+
+        <div class="table-board">
+          <article v-for="table in tableCapacityRows" :key="table.name" class="table-card">
+            <strong>{{ table.name }}</strong>
+            <p class="muted">已安排賓客</p>
+            <div class="capacity">
+              <span :style="{ width: `${table.percent}%` }"></span>
+            </div>
+            <span class="meta">{{ table.attendees }} / {{ table.capacity }} 位</span>
+          </article>
+        </div>
+      </div>
+
+      <div class="ops-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Shipping</p>
+            <h2>寄送待辦</h2>
+          </div>
+        </div>
+
+        <div class="timeline">
+          <div v-for="item in shippingSummary" :key="item.label" class="timeline-item">
+            <span class="timeline-dot"></span>
+            <p>{{ item.label }}</p>
+            <span class="badge badge-warn">{{ item.value }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ops-panel checkin-workbench">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Check-in</p>
+          <h2>現場搜尋與收禮</h2>
+        </div>
+        <div class="toolbar">
+          <input
+            v-model="searchQuery"
+          class="field-control checkin-search"
+            type="search"
+            placeholder="搜尋姓名或電話末三碼"
+            autocomplete="off"
+          />
+          <span class="badge badge-neutral">gift_staff</span>
+        </div>
+      </div>
+
+      <label class="toggle checkin-toggle">
+        <input v-model="attendingOnly" type="checkbox" />
+        <span aria-hidden="true"></span>
+        只看出席賓客
+      </label>
+
+      <p v-if="errorMessage" class="message message--error">{{ errorMessage }}</p>
+      <p v-if="isLoading" class="message">載入中...</p>
+
+      <div v-else class="checkin-list">
+        <article v-for="guest in visibleGuests" :key="guest.id" class="checkin-row">
+          <div>
+            <p class="guest-name">{{ guest.name }}</p>
+            <p class="guest-sub">
+              {{ guest.allocated_table || '未分桌' }} · 大人 {{ guest.total_adults }} 位
+              <template v-if="guest.total_children > 0"> · 小孩 {{ guest.total_children }} 位</template>
+              <template v-if="guest.diet_notes"> · {{ guest.diet_notes }}</template>
+            </p>
+            <p
+              v-if="guest.status === 'decline' && guest.decline_response"
+              class="guest-sub"
+            >
+              {{ declineResponseLabel(guest.decline_response) }}
+            </p>
+          </div>
+
+          <span
+            v-if="guest.is_arrived"
+            class="badge badge-success"
           >
-            {{ declineResponseLabel(guest.decline_response) }}
-          </p>
-          <p v-if="guest.total_children > 0" class="guest-item__meta">
-            小孩 {{ guest.total_children }} 位
-            <template v-if="guest.child_seats > 0">
-              · 兒童座椅 {{ guest.child_seats }} 張
-            </template>
-          </p>
-          <p v-if="guest.allocated_table" class="guest-item__meta">
-            桌號：{{ guest.allocated_table }}
-          </p>
-          <p v-if="guest.need_invitation && guest.invitation_address" class="guest-item__meta">
-            喜帖地址：{{ guest.invitation_address }}
-          </p>
-        </div>
+            已到場
+          </span>
+          <button
+            v-else
+            class="btn btn-primary"
+            type="button"
+            @click="handleMarkArrived(guest)"
+          >
+            標記到場
+          </button>
 
-        <div class="guest-item__actions">
-          <label class="toggle-field">
-            <input
-              type="checkbox"
-              :checked="guest.is_arrived"
-              @change="handleArrivedChange(guest, $event.target.checked)"
-            />
-            <span>已到場</span>
-          </label>
+          <input
+            class="field-control gift-input"
+            type="number"
+            min="0"
+            step="100"
+            aria-label="禮金"
+            :value="guest.gift_amount"
+            @input="handleGiftInput(guest, $event.target.value)"
+          />
+        </article>
+      </div>
 
-          <label class="field gift-field">
-            <span>禮金</span>
-            <input
-              type="number"
-              min="0"
-              step="100"
-              :value="guest.gift_amount"
-              @input="handleGiftInput(guest, $event.target.value)"
-            />
-          </label>
-        </div>
-      </li>
-    </ul>
-
-    <p v-if="!isLoading && guests.length === 0" class="message">
-      找不到符合條件的賓客
-    </p>
+      <p v-if="!isLoading && visibleGuests.length === 0" class="message">
+        找不到符合條件的賓客
+      </p>
+    </section>
   </AdminLayout>
 </template>
