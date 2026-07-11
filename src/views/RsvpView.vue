@@ -300,9 +300,33 @@ async function handleSubmit() {
       </div>
 
       <p v-if="errorMessage" class="message message--error">{{ errorMessage }}</p>
-      <p v-if="successMessage" class="success-note is-visible">
-        {{ successMessage }}
-      </p>
+      <div v-if="successMessage" class="success-note is-visible">
+        <p>{{ successMessage }}</p>
+        <div class="line-follow-card">
+          <div>
+            <strong>加入 Line 官方帳號</strong>
+            <span>後續婚禮資訊與即時聯繫會透過 Line 更新。</span>
+          </div>
+          <a
+            class="line-follow-card__mobile"
+            href="https://lin.ee/PvW0Voh"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <img
+              src="https://scdn.line-apps.com/n/line_add_friends/btn/zh-Hant.png"
+              alt="加入好友"
+              height="36"
+              border="0"
+            />
+          </a>
+          <img
+            class="line-follow-card__desktop"
+            src="https://qr-official.line.me/gs/M_287rlhkg_GW.png?oat_content=qr"
+            alt="Line 官方帳號 QR Code"
+          />
+        </div>
+      </div>
 
       <div class="actions">
       <button class="btn btn-primary" type="submit" :disabled="isSubmitting">

@@ -907,8 +907,48 @@ textarea.field-control {
   border: 1px solid color-mix(in oklab, var(--success), white 72%);
   border-radius: var(--radius-lg);
   color: color-mix(in oklab, var(--success), black 28%);
+  display: grid;
+  gap: var(--space-3);
   margin-top: var(--space-4);
   padding: 14px 16px;
+}
+
+.success-note p {
+  margin: 0;
+}
+
+.line-follow-card {
+  align-items: center;
+  background: color-mix(in oklab, var(--bg), transparent 10%);
+  border: 1px solid color-mix(in oklab, var(--success), white 64%);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.line-follow-card strong,
+.line-follow-card span {
+  display: block;
+}
+
+.line-follow-card span {
+  color: color-mix(in oklab, var(--text), transparent 24%);
+  font-size: var(--text-sm);
+  margin-top: 4px;
+}
+
+.line-follow-card__mobile {
+  display: none;
+  flex: none;
+}
+
+.line-follow-card__desktop {
+  border-radius: var(--radius-sm);
+  flex: none;
+  height: 112px;
+  width: 112px;
 }
 
 .public-rsvp {
@@ -1088,6 +1128,19 @@ textarea.field-control {
   .actions .btn,
   .toolbar .btn {
     width: 100%;
+  }
+
+  .line-follow-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .line-follow-card__mobile {
+    display: inline-flex;
+  }
+
+  .line-follow-card__desktop {
+    display: none;
   }
 
   .checkin-search {
