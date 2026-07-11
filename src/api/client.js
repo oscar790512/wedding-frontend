@@ -60,6 +60,17 @@ export function fetchGuests(q = '') {
   return apiRequest(`/api/admin/guests${params}`)
 }
 
+export function fetchTableSettings() {
+  return apiRequest('/api/admin/table-settings')
+}
+
+export function saveTableSetting(payload) {
+  return apiRequest('/api/admin/table-settings', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function patchGuest(guestId, payload) {
   return apiRequest(`/api/admin/guests/${guestId}`, {
     method: 'PATCH',

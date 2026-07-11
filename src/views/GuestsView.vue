@@ -70,7 +70,7 @@ function shippingLabel(guest) {
   if (guest.need_invitation) {
     return '喜帖可寄送'
   }
-  if (guest.decline_response === 'request_cake' && !guest.invitation_address) {
+  if (guest.decline_response === 'request_cake' && !guest.shipping_address) {
     return '喜餅待補地址'
   }
   if (guest.decline_response === 'request_cake') {

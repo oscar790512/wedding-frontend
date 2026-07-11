@@ -14,6 +14,7 @@ const form = reactive({
   need_invitation: false,
   invitation_address: '',
   decline_response: '',
+  shipping_address: '',
   blessing_message: '',
 })
 
@@ -51,9 +52,19 @@ watch(
       form.invitation_address = ''
     } else {
       form.decline_response = ''
+      form.shipping_address = ''
       if (form.total_adults < 1) {
         form.total_adults = 1
       }
+    }
+  },
+)
+
+watch(
+  () => form.decline_response,
+  (declineResponse) => {
+    if (declineResponse !== 'request_cake') {
+      form.shipping_address = ''
     }
   },
 )
@@ -75,6 +86,9 @@ async function handleSubmit() {
   } else if (!form.decline_response) {
     errorMessage.value = '無法出席時請選擇一個回覆選項'
     return
+  } else if (form.decline_response === 'request_cake' && !form.shipping_address.trim()) {
+    errorMessage.value = '希望收到喜餅時請填寫收件地址'
+    return
   }
 
   isSubmitting.value = true
@@ -89,6 +103,10 @@ async function handleSubmit() {
         : null,
       decline_response:
         form.status === 'decline' ? form.decline_response : null,
+      shipping_address:
+        form.status === 'decline' && form.decline_response === 'request_cake'
+          ? form.shipping_address.trim()
+          : null,
       blessing_message: form.blessing_message.trim() || null,
     })
     successMessage.value =
@@ -253,6 +271,19 @@ async function handleSubmit() {
             <option value="blessing_only">無法到場，在此致上誠摯的祝福</option>
             <option value="request_cake">無法到場，希望收到喜餅分享喜悅</option>
           </select>
+        </div>
+
+        <div v-if="form.decline_response === 'request_cake'" class="field">
+          <label for="cake-address">喜餅收件地址</label>
+          <textarea
+            id="cake-address"
+            v-model="form.shipping_address"
+            class="field-control"
+            rows="3"
+            maxlength="500"
+            required
+            placeholder="請填寫完整收件地址"
+          />
         </div>
       </section>
 

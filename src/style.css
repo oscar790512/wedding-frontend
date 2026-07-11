@@ -668,6 +668,27 @@ textarea.field-control {
   height: 100%;
 }
 
+.table-capacity-control {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.table-capacity-control label {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: var(--text-sm);
+  gap: 8px;
+}
+
+.table-capacity-control .field-control {
+  min-height: 36px;
+  padding: 8px 10px;
+  width: 86px;
+}
+
 .ops-grid {
   display: grid;
   gap: var(--space-4);

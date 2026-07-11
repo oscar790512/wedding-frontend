@@ -1,7 +1,12 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { fetchGuests, patchGuest } from '../api/client'
+import {
+  fetchGuests,
+  fetchTableSettings,
+  patchGuest,
+  saveTableSetting,
+} from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 
 const guests = ref([])
@@ -9,7 +14,10 @@ const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 const pendingGiftTimers = new Map()
+const pendingCapacityTimers = new Map()
 const attendingOnly = ref(true)
+const tableSettings = ref({})
+const tableCapacityDrafts = ref({})
 
 const visibleGuests = computed(() =>
   guests.value.filter((guest) =>
@@ -30,22 +38,39 @@ const tableSummary = computed(() => {
   return Array.from(counters.entries())
     .map(([name, attendees]) => ({ name, attendees }))
     .sort((a, b) => b.attendees - a.attendees)
-    .slice(0, 4)
 })
 
 const tableCapacityRows = computed(() => {
-  const rows = tableSummary.value.length
-    ? tableSummary.value
-    : [{ name: '未分桌', attendees: 0 }]
+  const rowsByName = new Map()
 
-  return rows.map((table) => ({
-    ...table,
-    capacity: table.name === '未分桌' ? Math.max(table.attendees, 36) : 12,
-    percent:
-      table.name === '未分桌'
-        ? 40
-        : Math.min(Math.round((table.attendees / 12) * 100), 100),
-  }))
+  for (const table of tableSummary.value) {
+    rowsByName.set(table.name, table)
+  }
+
+  for (const tableName of Object.keys(tableSettings.value)) {
+    if (!rowsByName.has(tableName)) {
+      rowsByName.set(tableName, { name: tableName, attendees: 0 })
+    }
+  }
+
+  if (rowsByName.size === 0) {
+    rowsByName.set('未分桌', { name: '未分桌', attendees: 0 })
+  }
+
+  return Array.from(rowsByName.values()).map((table) => {
+    const configuredCapacity = tableSettings.value[table.name]
+    const fallbackCapacity =
+      table.name === '未分桌' ? Math.max(table.attendees, 36) : 12
+    const capacity = Number(configuredCapacity || fallbackCapacity)
+    const draftCapacity = tableCapacityDrafts.value[table.name] ?? capacity
+
+    return {
+      ...table,
+      capacity,
+      draftCapacity,
+      percent: Math.min(Math.round((table.attendees / capacity) * 100), 100),
+    }
+  })
 })
 
 const shippingSummary = computed(() => {
@@ -56,7 +81,7 @@ const shippingSummary = computed(() => {
     (guest) => guest.need_invitation && guest.invitation_address,
   ).length
   const cakePending = guests.value.filter(
-    (guest) => guest.decline_response === 'request_cake' && !guest.invitation_address,
+    (guest) => guest.decline_response === 'request_cake' && !guest.shipping_address,
   ).length
   const cakeFollowUp = guests.value.filter(
     (guest) => guest.decline_response === 'request_cake',
@@ -75,12 +100,58 @@ async function loadGuests() {
   errorMessage.value = ''
 
   try {
-    guests.value = await fetchGuests(searchQuery.value.trim())
+    const [guestData, settingData] = await Promise.all([
+      fetchGuests(searchQuery.value.trim()),
+      fetchTableSettings(),
+    ])
+    guests.value = guestData
+    tableSettings.value = Object.fromEntries(
+      settingData.map((setting) => [setting.table_name, setting.capacity]),
+    )
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
   }
+}
+
+async function updateTableCapacity(tableName, capacity) {
+  try {
+    const updated = await saveTableSetting({
+      table_name: tableName,
+      capacity: Number(capacity),
+    })
+    tableSettings.value = {
+      ...tableSettings.value,
+      [updated.table_name]: updated.capacity,
+    }
+    tableCapacityDrafts.value = {
+      ...tableCapacityDrafts.value,
+      [updated.table_name]: updated.capacity,
+    }
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error.message
+  }
+}
+
+function handleCapacityInput(tableName, value) {
+  const capacity = Math.max(Number(value || 1), 1)
+  tableCapacityDrafts.value = {
+    ...tableCapacityDrafts.value,
+    [tableName]: capacity,
+  }
+
+  if (pendingCapacityTimers.has(tableName)) {
+    clearTimeout(pendingCapacityTimers.get(tableName))
+  }
+
+  const timer = setTimeout(() => {
+    updateTableCapacity(tableName, capacity)
+    pendingCapacityTimers.delete(tableName)
+  }, 500)
+
+  pendingCapacityTimers.set(tableName, timer)
 }
 
 async function updateGuestField(guestId, payload) {
@@ -182,7 +253,19 @@ onMounted(loadGuests)
             <div class="capacity">
               <span :style="{ width: `${table.percent}%` }"></span>
             </div>
-            <span class="meta">{{ table.attendees }} / {{ table.capacity }} 位</span>
+            <div class="table-capacity-control">
+              <span class="meta">{{ table.attendees }} / {{ table.capacity }} 位</span>
+              <label>
+                容量
+                <input
+                  class="field-control"
+                  type="number"
+                  min="1"
+                  :value="table.draftCapacity"
+                  @input="handleCapacityInput(table.name, $event.target.value)"
+                />
+              </label>
+            </div>
           </article>
         </div>
       </div>
