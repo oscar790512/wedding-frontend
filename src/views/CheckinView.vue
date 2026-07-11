@@ -1,12 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 
-import {
-  fetchGuests,
-  fetchTableSettings,
-  patchGuest,
-  saveTableSetting,
-} from '../api/client'
+import { fetchGuests, fetchTableSettings, patchGuest } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 
 const guests = ref([])
@@ -14,10 +9,9 @@ const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 const pendingGiftTimers = new Map()
-const pendingCapacityTimers = new Map()
 const attendingOnly = ref(true)
-const tableSettings = ref({})
-const tableCapacityDrafts = ref({})
+const selectedTable = ref(null)
+const tableSettings = ref([])
 
 const visibleGuests = computed(() =>
   guests.value.filter((guest) =>
@@ -26,51 +20,58 @@ const visibleGuests = computed(() =>
 )
 
 const tableSummary = computed(() => {
-  const counters = new Map()
+  const tables = new Map()
+
+  for (const setting of tableSettings.value) {
+    tables.set(setting.table_name, {
+      name: setting.table_name,
+      guests: [],
+      arrivedGuests: [],
+      pendingGuests: [],
+      attendees: 0,
+      arrivedAttendees: 0,
+      pendingAttendees: 0,
+    })
+  }
 
   for (const guest of guests.value) {
     if (guest.status !== 'attend') continue
     const tableName = guest.allocated_table || '未分桌'
-    const groupSize = Number(guest.total_adults || 0) + Number(guest.total_children || 0)
-    counters.set(tableName, (counters.get(tableName) || 0) + groupSize)
-  }
+    const groupSize = guestAttendeeCount(guest)
 
-  return Array.from(counters.entries())
-    .map(([name, attendees]) => ({ name, attendees }))
-    .sort((a, b) => b.attendees - a.attendees)
-})
+    if (!tables.has(tableName)) {
+      tables.set(tableName, {
+        name: tableName,
+        guests: [],
+        arrivedGuests: [],
+        pendingGuests: [],
+        attendees: 0,
+        arrivedAttendees: 0,
+        pendingAttendees: 0,
+      })
+    }
 
-const tableCapacityRows = computed(() => {
-  const rowsByName = new Map()
+    const table = tables.get(tableName)
+    table.guests.push(guest)
+    table.attendees += groupSize
 
-  for (const table of tableSummary.value) {
-    rowsByName.set(table.name, table)
-  }
-
-  for (const tableName of Object.keys(tableSettings.value)) {
-    if (!rowsByName.has(tableName)) {
-      rowsByName.set(tableName, { name: tableName, attendees: 0 })
+    if (guest.is_arrived) {
+      table.arrivedGuests.push(guest)
+      table.arrivedAttendees += groupSize
+    } else {
+      table.pendingGuests.push(guest)
+      table.pendingAttendees += groupSize
     }
   }
 
-  if (rowsByName.size === 0) {
-    rowsByName.set('未分桌', { name: '未分桌', attendees: 0 })
-  }
-
-  return Array.from(rowsByName.values()).map((table) => {
-    const configuredCapacity = tableSettings.value[table.name]
-    const fallbackCapacity =
-      table.name === '未分桌' ? Math.max(table.attendees, 36) : 12
-    const capacity = Number(configuredCapacity || fallbackCapacity)
-    const draftCapacity = tableCapacityDrafts.value[table.name] ?? capacity
-
-    return {
+  return Array.from(tables.values())
+    .map((table) => ({
       ...table,
-      capacity,
-      draftCapacity,
-      percent: Math.min(Math.round((table.attendees / capacity) * 100), 100),
-    }
-  })
+      percent: table.attendees
+        ? Math.round((table.arrivedAttendees / table.attendees) * 100)
+        : 0,
+    }))
+    .sort((a, b) => b.attendees - a.attendees)
 })
 
 const shippingSummary = computed(() => {
@@ -105,53 +106,12 @@ async function loadGuests() {
       fetchTableSettings(),
     ])
     guests.value = guestData
-    tableSettings.value = Object.fromEntries(
-      settingData.map((setting) => [setting.table_name, setting.capacity]),
-    )
+    tableSettings.value = settingData
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
   }
-}
-
-async function updateTableCapacity(tableName, capacity) {
-  try {
-    const updated = await saveTableSetting({
-      table_name: tableName,
-      capacity: Number(capacity),
-    })
-    tableSettings.value = {
-      ...tableSettings.value,
-      [updated.table_name]: updated.capacity,
-    }
-    tableCapacityDrafts.value = {
-      ...tableCapacityDrafts.value,
-      [updated.table_name]: updated.capacity,
-    }
-    errorMessage.value = ''
-  } catch (error) {
-    errorMessage.value = error.message
-  }
-}
-
-function handleCapacityInput(tableName, value) {
-  const capacity = Math.max(Number(value || 1), 1)
-  tableCapacityDrafts.value = {
-    ...tableCapacityDrafts.value,
-    [tableName]: capacity,
-  }
-
-  if (pendingCapacityTimers.has(tableName)) {
-    clearTimeout(pendingCapacityTimers.get(tableName))
-  }
-
-  const timer = setTimeout(() => {
-    updateTableCapacity(tableName, capacity)
-    pendingCapacityTimers.delete(tableName)
-  }, 500)
-
-  pendingCapacityTimers.set(tableName, timer)
 }
 
 async function updateGuestField(guestId, payload) {
@@ -165,6 +125,18 @@ async function updateGuestField(guestId, payload) {
   } catch (error) {
     errorMessage.value = error.message
   }
+}
+
+function guestAttendeeCount(guest) {
+  return Number(guest.total_adults || 0) + Number(guest.total_children || 0)
+}
+
+function openTableDialog(table) {
+  selectedTable.value = table
+}
+
+function closeTableDialog() {
+  selectedTable.value = null
 }
 
 function handleArrivedChange(guest, isArrived) {
@@ -241,32 +213,28 @@ onMounted(loadGuests)
         <div class="section-head">
           <div>
             <p class="eyebrow">Table Planning</p>
-            <h2>桌次容量</h2>
+            <h2>桌次簽到</h2>
           </div>
           <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
         </div>
 
         <div class="table-board">
-          <article v-for="table in tableCapacityRows" :key="table.name" class="table-card">
+          <button
+            v-for="table in tableSummary"
+            :key="table.name"
+            class="table-card table-card--button"
+            type="button"
+            @click="openTableDialog(table)"
+          >
             <strong>{{ table.name }}</strong>
-            <p class="muted">已安排賓客</p>
+            <p class="muted">已簽到賓客人數 / 已安排賓客人數</p>
             <div class="capacity">
               <span :style="{ width: `${table.percent}%` }"></span>
             </div>
-            <div class="table-capacity-control">
-              <span class="meta">{{ table.attendees }} / {{ table.capacity }} 位</span>
-              <label>
-                容量
-                <input
-                  class="field-control"
-                  type="number"
-                  min="1"
-                  :value="table.draftCapacity"
-                  @input="handleCapacityInput(table.name, $event.target.value)"
-                />
-              </label>
-            </div>
-          </article>
+            <span class="meta">
+              {{ table.arrivedAttendees }} / {{ table.attendees }} 位
+            </span>
+          </button>
         </div>
       </div>
 
@@ -287,6 +255,71 @@ onMounted(loadGuests)
         </div>
       </div>
     </section>
+
+    <div
+      v-if="selectedTable"
+      class="dialog-backdrop"
+      role="presentation"
+      @click.self="closeTableDialog"
+    >
+      <section class="dialog-card" role="dialog" aria-modal="true">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Table Check-in</p>
+            <h2>{{ selectedTable.name }}</h2>
+            <p class="lead">
+              已簽到 {{ selectedTable.arrivedAttendees }} 位，未簽到
+              {{ selectedTable.pendingAttendees }} 位。
+            </p>
+          </div>
+          <button class="btn btn-ghost" type="button" @click="closeTableDialog">
+            關閉
+          </button>
+        </div>
+
+        <div class="table-checkin-dialog">
+          <div>
+            <div class="dialog-list-head">
+              <h3>已簽到</h3>
+              <span class="badge badge-success">
+                {{ selectedTable.arrivedAttendees }} 位
+              </span>
+            </div>
+            <article
+              v-for="guest in selectedTable.arrivedGuests"
+              :key="guest.id"
+              class="dialog-guest"
+            >
+              <strong>{{ guest.name }}</strong>
+              <span>{{ guestAttendeeCount(guest) }} 位</span>
+            </article>
+            <p v-if="selectedTable.arrivedGuests.length === 0" class="message">
+              尚無賓客簽到
+            </p>
+          </div>
+
+          <div>
+            <div class="dialog-list-head">
+              <h3>未簽到</h3>
+              <span class="badge badge-warn">
+                {{ selectedTable.pendingAttendees }} 位
+              </span>
+            </div>
+            <article
+              v-for="guest in selectedTable.pendingGuests"
+              :key="guest.id"
+              class="dialog-guest"
+            >
+              <strong>{{ guest.name }}</strong>
+              <span>{{ guestAttendeeCount(guest) }} 位</span>
+            </article>
+            <p v-if="selectedTable.pendingGuests.length === 0" class="message">
+              這桌賓客皆已簽到
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <section class="ops-panel checkin-workbench">
       <div class="section-head">

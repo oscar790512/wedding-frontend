@@ -6,6 +6,7 @@ import DashboardView from '../views/DashboardView.vue'
 import GuestsView from '../views/GuestsView.vue'
 import LoginView from '../views/LoginView.vue'
 import RsvpView from '../views/RsvpView.vue'
+import TablePlanView from '../views/TablePlanView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -27,6 +28,12 @@ const router = createRouter({
       path: '/admin/guests',
       name: 'guests',
       component: GuestsView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/tables',
+      name: 'tables',
+      component: TablePlanView,
       meta: { requiresAuth: true },
     },
     {

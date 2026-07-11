@@ -71,6 +71,20 @@ export function saveTableSetting(payload) {
   })
 }
 
+export function renameTableSetting(payload) {
+  return apiRequest('/api/admin/table-settings/rename', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteTableSetting(tableName) {
+  return apiRequest(
+    `/api/admin/table-settings?table_name=${encodeURIComponent(tableName)}`,
+    { method: 'DELETE' },
+  )
+}
+
 export function patchGuest(guestId, payload) {
   return apiRequest(`/api/admin/guests/${guestId}`, {
     method: 'PATCH',

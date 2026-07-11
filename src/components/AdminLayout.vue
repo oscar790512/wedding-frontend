@@ -24,6 +24,7 @@ const { username, clearSession } = useAuth()
 const navItems = [
   { to: '/admin/dashboard', label: '統計大盤' },
   { to: '/admin/guests', label: '賓客管理' },
+  { to: '/admin/tables', label: '桌次安排' },
   { to: '/admin/operations', label: '現場工作台' },
 ]
 
