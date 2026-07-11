@@ -146,6 +146,10 @@ fieldset.field {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.radio-group--stacked {
+  grid-template-columns: 1fr;
+}
+
 .radio-chip {
   align-items: center;
   background: #fff;

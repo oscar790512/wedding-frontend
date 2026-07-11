@@ -13,7 +13,7 @@ const form = reactive({
   diet_notes: '',
   need_invitation: false,
   invitation_address: '',
-  will_send_gift: false,
+  decline_response: '',
   blessing_message: '',
 })
 
@@ -50,7 +50,7 @@ watch(
       form.need_invitation = false
       form.invitation_address = ''
     } else {
-      form.will_send_gift = false
+      form.decline_response = ''
       if (form.total_adults < 1) {
         form.total_adults = 1
       }
@@ -72,6 +72,9 @@ async function handleSubmit() {
       errorMessage.value = '兒童座椅數量不可超過小孩人數'
       return
     }
+  } else if (!form.decline_response) {
+    errorMessage.value = '無法出席時請選擇一個回覆選項'
+    return
   }
 
   isSubmitting.value = true
@@ -84,7 +87,8 @@ async function handleSubmit() {
       invitation_address: form.need_invitation
         ? form.invitation_address.trim()
         : null,
-      will_send_gift: form.status === 'decline' ? form.will_send_gift : false,
+      decline_response:
+        form.status === 'decline' ? form.decline_response : null,
       blessing_message: form.blessing_message.trim() || null,
     })
     successMessage.value =
@@ -200,10 +204,29 @@ async function handleSubmit() {
       </template>
 
       <template v-else-if="form.status === 'decline'">
-        <label class="checkbox-field">
-          <input v-model="form.will_send_gift" type="checkbox" />
-          <span>無法出席，但仍會包禮金</span>
-        </label>
+        <fieldset class="field">
+          <legend>無法出席回覆 *</legend>
+          <div class="radio-group radio-group--stacked">
+            <label class="radio-chip">
+              <input
+                v-model="form.decline_response"
+                required
+                type="radio"
+                value="blessing_only"
+              />
+              <span>無法到場，在此致上誠摯的祝福</span>
+            </label>
+            <label class="radio-chip">
+              <input
+                v-model="form.decline_response"
+                required
+                type="radio"
+                value="request_cake"
+              />
+              <span>無法到場，此外我希望收到喜餅祝福你們分享的喜悅！</span>
+            </label>
+          </div>
+        </fieldset>
       </template>
 
       <label class="field">

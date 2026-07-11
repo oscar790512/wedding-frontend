@@ -43,7 +43,14 @@ onMounted(loadSummary)
       <StatCard label="素食需求" :value="summary.vegetarian_count" />
       <StatCard label="喜帖需求" :value="summary.invitation_count" />
       <StatCard label="兒童座椅" :value="summary.child_seats_count" />
-      <StatCard label="無法出席但包禮金" :value="summary.will_send_gift_count" />
+      <StatCard
+        label="不出席：致上祝福"
+        :value="summary.decline_blessing_only_count"
+      />
+      <StatCard
+        label="不出席：希望收到喜餅"
+        :value="summary.decline_request_cake_count"
+      />
       <StatCard
         label="禮金總額"
         :value="`$${Number(summary.total_gift_amount).toLocaleString()}`"

@@ -63,6 +63,16 @@ function statusLabel(status) {
   return '未決定'
 }
 
+function declineResponseLabel(response) {
+  if (response === 'blessing_only') {
+    return '無法到場，在此致上誠摯的祝福'
+  }
+  if (response === 'request_cake') {
+    return '無法到場，希望收到喜餅分享喜悅'
+  }
+  return ''
+}
+
 let searchTimer
 watch(searchQuery, () => {
   clearTimeout(searchTimer)
@@ -99,8 +109,11 @@ onMounted(loadGuests)
             </span>
           </div>
           <p class="guest-item__phone">{{ guest.phone }}</p>
-          <p v-if="guest.status === 'decline' && guest.will_send_gift" class="guest-item__meta">
-            無法出席 · 仍會包禮金
+          <p
+            v-if="guest.status === 'decline' && guest.decline_response"
+            class="guest-item__meta"
+          >
+            {{ declineResponseLabel(guest.decline_response) }}
           </p>
           <p v-if="guest.total_children > 0" class="guest-item__meta">
             小孩 {{ guest.total_children }} 位
