@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import backgroundImage from '../assets/background.jpg'
 import { submitRsvp } from '../api/client'
@@ -41,8 +41,18 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showLineDialog = ref(false)
+const activeSection = ref('rsvp-title')
 let sectionTouchStartX = 0
 let sectionTouchStartY = 0
+let lastSectionNavigationAt = 0
+let sectionObserver = null
+let sectionNavigationLock = null
+
+const pageSections = [
+  { id: 'rsvp-title', label: '邀請' },
+  { id: 'wedding-info', label: '資訊' },
+  { id: 'questionnaire', label: '填寫' },
+]
 
 function normalizePhone(value) {
   return value.trim()
@@ -257,8 +267,24 @@ function scrollToElement(elementId) {
   })
 }
 
+function lockSectionNavigation(duration = 720) {
+  if (sectionNavigationLock) {
+    window.clearTimeout(sectionNavigationLock)
+  }
+
+  sectionNavigationLock = window.setTimeout(() => {
+    sectionNavigationLock = null
+  }, duration)
+}
+
+function navigateToSection(sectionId) {
+  activeSection.value = sectionId
+  scrollToElement(sectionId)
+  lockSectionNavigation()
+}
+
 function scrollToWeddingInfo() {
-  scrollToElement('wedding-info')
+  navigateToSection('wedding-info')
 }
 
 function handleSectionTouchStart(event) {
@@ -267,17 +293,67 @@ function handleSectionTouchStart(event) {
   sectionTouchStartY = touch.clientY
 }
 
-function handleSectionTouchEnd(event, targetId) {
-  if (!window.matchMedia('(max-width: 640px)').matches) return
+function navigateSection(targetId) {
+  const now = Date.now()
+  if (sectionNavigationLock || now - lastSectionNavigationAt < 520) return
+  lastSectionNavigationAt = now
+  navigateToSection(targetId)
+}
+
+function handleSectionTouchEnd(event, nextSectionId, previousSectionId = '') {
+  if (!window.matchMedia('(max-width: 980px)').matches) return
 
   const touch = event.changedTouches[0]
   const deltaX = Math.abs(touch.clientX - sectionTouchStartX)
   const deltaY = sectionTouchStartY - touch.clientY
 
   if (deltaY > 36 && deltaY > deltaX) {
-    scrollToElement(targetId)
+    navigateSection(nextSectionId)
+  } else if (previousSectionId && deltaY < -36 && Math.abs(deltaY) > deltaX) {
+    navigateSection(previousSectionId)
   }
 }
+
+function handleSectionWheel(event, nextSectionId, previousSectionId = '') {
+  if (Math.abs(event.deltaY) < 12) return
+  if (event.deltaY < 0 && !previousSectionId) return
+
+  event.preventDefault()
+  navigateSection(event.deltaY > 0 ? nextSectionId : previousSectionId)
+}
+
+onMounted(() => {
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      const visibleEntry = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((first, second) => second.intersectionRatio - first.intersectionRatio)[0]
+
+      if (visibleEntry) {
+        if (sectionNavigationLock) return
+        activeSection.value = visibleEntry.target.id
+      }
+    },
+    {
+      rootMargin: '-35% 0px -45% 0px',
+      threshold: [0.1, 0.35, 0.6],
+    },
+  )
+
+  pageSections.forEach((section) => {
+    const element = document.getElementById(section.id)
+    if (element) sectionObserver.observe(element)
+  })
+})
+
+onBeforeUnmount(() => {
+  if (sectionObserver) {
+    sectionObserver.disconnect()
+  }
+  if (sectionNavigationLock) {
+    window.clearTimeout(sectionNavigationLock)
+  }
+})
 </script>
 
 <template>
@@ -292,9 +368,11 @@ function handleSectionTouchEnd(event, targetId) {
     </nav>
 
     <header
+      id="rsvp-title"
       class="rsvp-hero"
       @touchstart.passive="handleSectionTouchStart"
       @touchend.passive="handleSectionTouchEnd($event, 'wedding-info')"
+      @wheel="handleSectionWheel($event, 'wedding-info')"
     >
       <img class="rsvp-hero__image" :src="backgroundImage" alt="祺元與姵妤婚紗照" />
       <div class="rsvp-hero__shade" aria-hidden="true"></div>
@@ -308,6 +386,19 @@ function handleSectionTouchEnd(event, targetId) {
       </div>
     </header>
 
+    <nav class="rsvp-section-nav" aria-label="RSVP 區塊導覽">
+      <button
+        v-for="section in pageSections"
+        :key="section.id"
+        type="button"
+        :class="{ 'is-active': activeSection === section.id }"
+        @click="navigateToSection(section.id)"
+      >
+        <span class="rsvp-section-nav__dot" aria-hidden="true"></span>
+        <span class="rsvp-section-nav__label">{{ section.label }}</span>
+      </button>
+    </nav>
+
     <main id="rsvp-form" class="section rsvp-main-section">
       <div class="container rsvp-content-grid">
         <aside
@@ -315,7 +406,8 @@ function handleSectionTouchEnd(event, targetId) {
           class="rsvp-info-panel"
           aria-label="婚禮資訊"
           @touchstart.passive="handleSectionTouchStart"
-          @touchend.passive="handleSectionTouchEnd($event, 'questionnaire')"
+          @touchend.passive="handleSectionTouchEnd($event, 'questionnaire', 'rsvp-title')"
+          @wheel="handleSectionWheel($event, 'questionnaire', 'rsvp-title')"
         >
           <p class="eyebrow">Save the Date</p>
           <h2>期待在婚禮現場與您相見。</h2>
@@ -325,7 +417,7 @@ function handleSectionTouchEnd(event, targetId) {
           <dl class="rsvp-info-list">
             <div>
               <dt>日期</dt>
-              <dd>2026年11月8日</dd>
+              <dd>2026年11月8日 星期日 (Sun)</dd>
             </div>
             <div>
               <dt>時間</dt>
@@ -333,7 +425,7 @@ function handleSectionTouchEnd(event, targetId) {
             </div>
             <div>
               <dt>地點</dt>
-              <dd>老新台菜 十全店</dd>
+              <dd>老新台菜 十全店 (2樓A廳)</dd>
             </div>
             <div>
               <dt>地址</dt>
@@ -344,6 +436,9 @@ function handleSectionTouchEnd(event, targetId) {
               <dd>出席人數、飲食需求、喜帖或喜餅寄送資訊</dd>
             </div>
           </dl>
+          <p class="rsvp-line-note">
+            送出回覆後可加入我們的 Line 官方帳號，後續婚禮提醒與座位資訊會在那邊同步。
+          </p>
         </aside>
 
         <form id="questionnaire" class="form-panel rsvp-form-panel" @submit.prevent="handleSubmit">

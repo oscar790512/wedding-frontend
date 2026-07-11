@@ -1,4 +1,5 @@
 <script setup>
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
@@ -20,6 +21,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { username, clearSession } = useAuth()
+const isSidebarCollapsed = ref(false)
 
 const navItems = [
   { to: '/admin/dashboard', label: '統計大盤' },
@@ -32,6 +34,10 @@ const navItems = [
 function logout() {
   clearSession()
   router.push('/login')
+}
+
+function toggleSidebar() {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
 }
 </script>
 
@@ -59,10 +65,23 @@ function logout() {
       </div>
     </nav>
 
-    <div class="admin-layout">
+    <div class="admin-layout" :class="{ 'is-sidebar-collapsed': isSidebarCollapsed }">
       <aside class="sidebar">
-        <p class="eyebrow">{{ props.eyebrow }}</p>
-        <h3>{{ props.title }}</h3>
+        <div class="sidebar-head">
+          <div class="sidebar-title">
+            <p class="eyebrow">{{ props.eyebrow }}</p>
+            <h3>{{ props.title }}</h3>
+          </div>
+          <button
+            class="sidebar-toggle"
+            type="button"
+            :aria-label="isSidebarCollapsed ? '展開左側欄' : '收合左側欄'"
+            :title="isSidebarCollapsed ? '展開' : '收合'"
+            @click="toggleSidebar"
+          >
+            {{ isSidebarCollapsed ? '›' : '‹' }}
+          </button>
+        </div>
 
         <div class="side-group">
           <RouterLink
@@ -70,8 +89,10 @@ function logout() {
             :key="item.to"
             :to="item.to"
             class="side-link"
+            :title="item.label"
           >
-            <span>{{ item.label }}</span>
+            <span class="side-link-label">{{ item.label }}</span>
+            <span class="side-link-short" aria-hidden="true">{{ item.label.slice(0, 1) }}</span>
             <span v-if="item.label === props.title">•</span>
           </RouterLink>
         </div>
