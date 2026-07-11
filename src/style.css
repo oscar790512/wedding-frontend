@@ -868,7 +868,7 @@ textarea.field-control {
   border-radius: var(--radius-lg);
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) 116px 160px;
+  grid-template-columns: minmax(0, 1fr) 116px 190px 190px;
   padding: 14px;
 }
 
@@ -880,6 +880,26 @@ textarea.field-control {
 
 .gift-input {
   text-align: right;
+}
+
+.actual-count-fields {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.actual-count-fields label {
+  color: var(--muted);
+  display: grid;
+  font-size: var(--text-sm);
+  gap: 6px;
+}
+
+.gift-field {
+  color: var(--muted);
+  display: grid;
+  font-size: var(--text-sm);
+  gap: 6px;
 }
 
 .success-note {

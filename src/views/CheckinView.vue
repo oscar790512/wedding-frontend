@@ -9,6 +9,7 @@ const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 const pendingGiftTimers = new Map()
+const pendingActualCountTimers = new Map()
 const attendingOnly = ref(true)
 const selectedTable = ref(null)
 const tableSettings = ref([])
@@ -128,7 +129,15 @@ async function updateGuestField(guestId, payload) {
 }
 
 function guestAttendeeCount(guest) {
-  return Number(guest.total_adults || 0) + Number(guest.total_children || 0)
+  return actualAdults(guest) + actualChildren(guest)
+}
+
+function actualAdults(guest) {
+  return Number(guest.actual_adults ?? guest.total_adults ?? 0)
+}
+
+function actualChildren(guest) {
+  return Number(guest.actual_children ?? guest.total_children ?? 0)
 }
 
 function openTableDialog(table) {
@@ -139,14 +148,8 @@ function closeTableDialog() {
   selectedTable.value = null
 }
 
-function handleArrivedChange(guest, isArrived) {
-  updateGuestField(guest.id, { is_arrived: isArrived })
-}
-
-function handleMarkArrived(guest) {
-  if (!guest.is_arrived) {
-    updateGuestField(guest.id, { is_arrived: true })
-  }
+function handleArrivedToggle(guest) {
+  updateGuestField(guest.id, { is_arrived: !guest.is_arrived })
 }
 
 function handleGiftInput(guest, value) {
@@ -164,6 +167,24 @@ function handleGiftInput(guest, value) {
   }, 500)
 
   pendingGiftTimers.set(guest.id, timer)
+}
+
+function handleActualCountInput(guest, field, value) {
+  guest[field] = value === '' ? null : Math.max(Number(value), 0)
+
+  const timerKey = `${guest.id}:${field}`
+  if (pendingActualCountTimers.has(timerKey)) {
+    clearTimeout(pendingActualCountTimers.get(timerKey))
+  }
+
+  const timer = setTimeout(() => {
+    updateGuestField(guest.id, {
+      [field]: guest[field],
+    })
+    pendingActualCountTimers.delete(timerKey)
+  }, 500)
+
+  pendingActualCountTimers.set(timerKey, timer)
 }
 
 function statusLabel(status) {
@@ -335,7 +356,6 @@ onMounted(loadGuests)
             placeholder="搜尋姓名或電話末三碼"
             autocomplete="off"
           />
-          <span class="badge badge-neutral">gift_staff</span>
         </div>
       </div>
 
@@ -355,6 +375,9 @@ onMounted(loadGuests)
             <p class="guest-sub">
               {{ guest.allocated_table || '未分桌' }} · 大人 {{ guest.total_adults }} 位
               <template v-if="guest.total_children > 0"> · 小孩 {{ guest.total_children }} 位</template>
+              <template v-if="guest.actual_adults !== null || guest.actual_children !== null">
+                · 實到 {{ guestAttendeeCount(guest) }} 位
+              </template>
               <template v-if="guest.diet_notes"> · {{ guest.diet_notes }}</template>
             </p>
             <p
@@ -365,30 +388,52 @@ onMounted(loadGuests)
             </p>
           </div>
 
-          <span
-            v-if="guest.is_arrived"
-            class="badge badge-success"
-          >
-            已到場
-          </span>
           <button
-            v-else
-            class="btn btn-primary"
+            class="btn"
+            :class="guest.is_arrived ? 'btn-dark' : 'btn-primary'"
             type="button"
-            @click="handleMarkArrived(guest)"
+            @click="handleArrivedToggle(guest)"
           >
-            標記到場
+            {{ guest.is_arrived ? '取消到場' : '標記到場' }}
           </button>
 
-          <input
-            class="field-control gift-input"
-            type="number"
-            min="0"
-            step="100"
-            aria-label="禮金"
-            :value="guest.gift_amount"
-            @input="handleGiftInput(guest, $event.target.value)"
-          />
+          <div class="actual-count-fields">
+            <label>
+              實到大人
+              <input
+                class="field-control"
+                type="number"
+                min="0"
+                :placeholder="String(guest.total_adults || 0)"
+                :value="guest.actual_adults ?? ''"
+                @input="handleActualCountInput(guest, 'actual_adults', $event.target.value)"
+              />
+            </label>
+            <label>
+              實到小孩
+              <input
+                class="field-control"
+                type="number"
+                min="0"
+                :placeholder="String(guest.total_children || 0)"
+                :value="guest.actual_children ?? ''"
+                @input="handleActualCountInput(guest, 'actual_children', $event.target.value)"
+              />
+            </label>
+          </div>
+
+          <label class="gift-field">
+            <span>禮金金額</span>
+            <input
+              class="field-control gift-input"
+              type="number"
+              min="0"
+              step="100"
+              aria-label="禮金金額"
+              :value="guest.gift_amount"
+              @input="handleGiftInput(guest, $event.target.value)"
+            />
+          </label>
         </article>
       </div>
 
