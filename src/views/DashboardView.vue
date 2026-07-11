@@ -1,48 +1,14 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 
-import { fetchSummary } from '../api/client'
+import { fetchGuests, fetchSummary } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 import StatCard from '../components/StatCard.vue'
 
 const summary = ref(null)
+const guests = ref([])
 const errorMessage = ref('')
 const isLoading = ref(true)
-
-const milestoneCards = computed(() => {
-  if (!summary.value) {
-    return []
-  }
-
-  const pendingInvitations = Math.max(
-    summary.value.invitation_count - summary.value.attending_households,
-    0,
-  )
-
-  return [
-    {
-      tag: 'Milestone 1',
-      title: '名單整理',
-      body: `目前 ${summary.value.total_guests} 組資料已進系統，建議優先整理分類、內部備註與待確認地址。`,
-      cta: '/admin/guests',
-      action: '進入賓客管理',
-    },
-    {
-      tag: 'Milestone 2',
-      title: '婚禮當天工作模式',
-      body: `已有 ${summary.value.arrived_count} 組到場紀錄與 ${summary.value.child_seats_count} 張兒童座椅需求，可直接作為現場工作台基底。`,
-      cta: '/admin/operations',
-      action: '開啟現場工作台',
-    },
-    {
-      tag: 'Roadmap',
-      title: '待補流程',
-      body: `喜帖需求 ${summary.value.invitation_count} 組。現階段仍缺寄送追蹤、桌次與匯出流程，建議從後台資訊架構先補齊。`,
-      cta: '/admin/guests',
-      action: pendingInvitations > 0 ? '整理寄送資料' : '查看完整名單',
-    },
-  ]
-})
 
 const summaryGroups = computed(() => {
   if (!summary.value) {
@@ -113,12 +79,39 @@ const summaryGroups = computed(() => {
   ]
 })
 
+const shippingSummary = computed(() => {
+  const invitationPending = guests.value.filter(
+    (guest) => guest.need_invitation && !guest.invitation_address,
+  ).length
+  const invitationReady = guests.value.filter(
+    (guest) => guest.need_invitation && guest.invitation_address,
+  ).length
+  const cakePending = guests.value.filter(
+    (guest) => guest.decline_response === 'request_cake' && !guest.shipping_address,
+  ).length
+  const cakeFollowUp = guests.value.filter(
+    (guest) => guest.decline_response === 'request_cake',
+  ).length
+
+  return [
+    { label: '喜帖待確認地址', value: invitationPending },
+    { label: '喜帖可處理寄送', value: invitationReady },
+    { label: '喜餅待補地址', value: cakePending },
+    { label: '喜餅需求總數', value: cakeFollowUp },
+  ]
+})
+
 async function loadSummary() {
   isLoading.value = true
   errorMessage.value = ''
 
   try {
-    summary.value = await fetchSummary()
+    const [summaryData, guestData] = await Promise.all([
+      fetchSummary(),
+      fetchGuests(''),
+    ])
+    summary.value = summaryData
+    guests.value = guestData
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -178,18 +171,28 @@ onMounted(loadSummary)
         </section>
       </section>
 
-      <section class="section dashboard-actions">
-        <div class="grid-3">
-          <article v-for="card in milestoneCards" :key="card.title" class="panel">
-            <span class="badge badge-warn">{{ card.tag }}</span>
-            <h2>{{ card.title }}</h2>
-            <p class="muted">{{ card.body }}</p>
-            <RouterLink class="btn btn-dark" :to="card.cta">
-              {{ card.action }}
-            </RouterLink>
-          </article>
+      <section class="summary-group">
+        <div class="summary-group__head">
+          <div>
+            <p class="eyebrow">Shipping</p>
+            <h2>寄送待辦</h2>
+          </div>
+          <RouterLink class="btn btn-ghost" to="/admin/shipping">
+            查看明細
+          </RouterLink>
+        </div>
+
+        <div class="panel">
+          <div class="timeline">
+            <div v-for="item in shippingSummary" :key="item.label" class="timeline-item">
+              <span class="timeline-dot"></span>
+              <p>{{ item.label }}</p>
+              <span class="badge badge-warn">{{ item.value }}</span>
+            </div>
+          </div>
         </div>
       </section>
+
     </template>
   </AdminLayout>
 </template>

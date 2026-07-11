@@ -6,6 +6,7 @@ import DashboardView from '../views/DashboardView.vue'
 import GuestsView from '../views/GuestsView.vue'
 import LoginView from '../views/LoginView.vue'
 import RsvpView from '../views/RsvpView.vue'
+import ShippingView from '../views/ShippingView.vue'
 import TablePlanView from '../views/TablePlanView.vue'
 
 const router = createRouter({
@@ -28,6 +29,12 @@ const router = createRouter({
       path: '/admin/guests',
       name: 'guests',
       component: GuestsView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/shipping',
+      name: 'shipping',
+      component: ShippingView,
       meta: { requiresAuth: true },
     },
     {

@@ -75,28 +75,6 @@ const tableSummary = computed(() => {
     .sort((a, b) => b.attendees - a.attendees)
 })
 
-const shippingSummary = computed(() => {
-  const invitationPending = guests.value.filter(
-    (guest) => guest.need_invitation && !guest.invitation_address,
-  ).length
-  const invitationReady = guests.value.filter(
-    (guest) => guest.need_invitation && guest.invitation_address,
-  ).length
-  const cakePending = guests.value.filter(
-    (guest) => guest.decline_response === 'request_cake' && !guest.shipping_address,
-  ).length
-  const cakeFollowUp = guests.value.filter(
-    (guest) => guest.decline_response === 'request_cake',
-  ).length
-
-  return [
-    { label: '喜帖待確認地址', value: invitationPending },
-    { label: '喜帖可處理寄送', value: invitationReady },
-    { label: '喜餅待補地址', value: cakePending },
-    { label: '喜餅需求總數', value: cakeFollowUp },
-  ]
-})
-
 async function loadGuests() {
   isLoading.value = true
   errorMessage.value = ''
@@ -249,51 +227,32 @@ onMounted(loadGuests)
       </div>
     </header>
 
-    <section class="ops-grid">
-      <div class="ops-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Table Planning</p>
-            <h2>桌次簽到</h2>
-          </div>
-          <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
+    <section class="ops-panel">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Table Planning</p>
+          <h2>桌次簽到</h2>
         </div>
-
-        <div class="table-board">
-          <button
-            v-for="table in tableSummary"
-            :key="table.name"
-            class="table-card table-card--button"
-            type="button"
-            @click="openTableDialog(table)"
-          >
-            <strong>{{ table.name }}</strong>
-            <p class="muted">已簽到賓客人數 / 已安排賓客人數</p>
-            <div class="capacity">
-              <span :style="{ width: `${table.percent}%` }"></span>
-            </div>
-            <span class="meta">
-              {{ table.arrivedAttendees }} / {{ table.attendees }} 位
-            </span>
-          </button>
-        </div>
+        <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
       </div>
 
-      <div class="ops-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Shipping</p>
-            <h2>寄送待辦</h2>
+      <div class="table-board">
+        <button
+          v-for="table in tableSummary"
+          :key="table.name"
+          class="table-card table-card--button"
+          type="button"
+          @click="openTableDialog(table)"
+        >
+          <strong>{{ table.name }}</strong>
+          <p class="muted">已簽到賓客人數 / 已安排賓客人數</p>
+          <div class="capacity">
+            <span :style="{ width: `${table.percent}%` }"></span>
           </div>
-        </div>
-
-        <div class="timeline">
-          <div v-for="item in shippingSummary" :key="item.label" class="timeline-item">
-            <span class="timeline-dot"></span>
-            <p>{{ item.label }}</p>
-            <span class="badge badge-warn">{{ item.value }}</span>
-          </div>
-        </div>
+          <span class="meta">
+            {{ table.arrivedAttendees }} / {{ table.attendees }} 位
+          </span>
+        </button>
       </div>
     </section>
 

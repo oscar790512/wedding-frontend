@@ -55,9 +55,22 @@ export function fetchSummary() {
   return apiRequest('/api/admin/summary')
 }
 
-export function fetchGuests(q = '') {
-  const params = q ? `?q=${encodeURIComponent(q)}` : ''
-  return apiRequest(`/api/admin/guests${params}`)
+export function fetchGuests(query = '') {
+  const params = new URLSearchParams()
+
+  if (typeof query === 'string') {
+    if (query) {
+      params.set('q', query)
+    }
+  } else if (query && typeof query === 'object') {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return
+      params.set(key, String(value))
+    })
+  }
+
+  const search = params.toString()
+  return apiRequest(`/api/admin/guests${search ? `?${search}` : ''}`)
 }
 
 export function fetchTableSettings() {
@@ -89,5 +102,18 @@ export function patchGuest(guestId, payload) {
   return apiRequest(`/api/admin/guests/${guestId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  })
+}
+
+export function createGuest(payload) {
+  return apiRequest('/api/admin/guests', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteGuest(guestId) {
+  return apiRequest(`/api/admin/guests/${guestId}`, {
+    method: 'DELETE',
   })
 }
