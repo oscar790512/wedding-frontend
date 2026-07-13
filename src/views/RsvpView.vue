@@ -357,12 +357,7 @@ function scrollToElement(elementId) {
   const element = document.getElementById(elementId)
   if (!element) return
 
-  const navOffset = 72
-  const targetTop = element.getBoundingClientRect().top + window.scrollY - navOffset
-  window.scrollTo({
-    top: targetTop,
-    behavior: 'smooth',
-  })
+  element.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function lockSectionNavigation(duration = 720) {
@@ -404,8 +399,12 @@ function handleSectionTouchEnd(event, nextSectionId, previousSectionId = '') {
   const touch = event.changedTouches[0]
   const deltaX = Math.abs(touch.clientX - sectionTouchStartX)
   const deltaY = sectionTouchStartY - touch.clientY
+  const currentTarget = event.currentTarget
 
   if (deltaY > 36 && deltaY > deltaX) {
+    if (currentTarget?.id === 'wedding-info' && !isNearPanelBottom(currentTarget)) {
+      return
+    }
     navigateSection(nextSectionId)
   } else if (previousSectionId && deltaY < -36 && Math.abs(deltaY) > deltaX) {
     navigateSection(previousSectionId)
@@ -415,9 +414,17 @@ function handleSectionTouchEnd(event, nextSectionId, previousSectionId = '') {
 function handleSectionWheel(event, nextSectionId, previousSectionId = '') {
   if (Math.abs(event.deltaY) < 12) return
   if (event.deltaY < 0 && !previousSectionId) return
+  if (event.currentTarget?.id === 'wedding-info' && event.deltaY > 0 && !isNearPanelBottom(event.currentTarget)) {
+    return
+  }
 
   event.preventDefault()
   navigateSection(event.deltaY > 0 ? nextSectionId : previousSectionId)
+}
+
+function isNearPanelBottom(element) {
+  const rect = element.getBoundingClientRect()
+  return rect.bottom <= window.innerHeight + 24
 }
 
 onMounted(() => {
@@ -540,6 +547,15 @@ onBeforeUnmount(() => {
           <p class="rsvp-line-note">
             送出回覆後可加入我們的 Line 官方帳號，後續婚禮提醒與座位資訊會在那邊同步。
           </p>
+          <button
+            class="rsvp-continue-cue"
+            type="button"
+            aria-label="繼續填寫 RSVP"
+            @click="navigateToSection('questionnaire')"
+          >
+            <span>繼續填寫</span>
+            <span aria-hidden="true">↓</span>
+          </button>
         </aside>
 
         <form id="questionnaire" class="form-panel rsvp-form-panel" @submit.prevent="handleSubmit">
