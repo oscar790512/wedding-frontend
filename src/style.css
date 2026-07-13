@@ -1587,7 +1587,7 @@ textarea.field-control {
   border-radius: var(--radius-lg);
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) 116px 190px 190px;
+  grid-template-columns: minmax(0, 1fr) 116px 190px 190px 110px;
   padding: 14px;
 }
 
@@ -1599,6 +1599,10 @@ textarea.field-control {
 
 .gift-input {
   text-align: right;
+}
+
+.cake-pickup-field {
+  justify-self: end;
 }
 
 .actual-count-fields {

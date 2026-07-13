@@ -140,9 +140,13 @@ function buildPayload() {
     decline_response:
       form.value.status === 'decline' ? form.value.decline_response : null,
     cake_status:
-      form.value.status === 'decline' && form.value.decline_response === 'request_cake'
-        ? form.value.cake_status
-        : 'not_required',
+      form.value.status === 'attend'
+        ? ['pending_pickup', 'pickup'].includes(form.value.cake_status)
+          ? form.value.cake_status
+          : 'pending_pickup'
+        : form.value.status === 'decline' && form.value.decline_response === 'request_cake'
+          ? form.value.cake_status
+          : 'not_required',
     shipping_recipient:
       form.value.status === 'decline' && form.value.decline_response === 'request_cake'
         ? form.value.shipping_recipient
@@ -255,7 +259,7 @@ function shippingStatusLabel(guest) {
     if (guest.cake_status === 'pending_address') return '喜餅待補地址'
     if (guest.cake_status === 'pending_send') return '喜餅待寄送'
     if (guest.cake_status === 'sent') return '喜餅已寄出'
-    if (guest.cake_status === 'pickup') return '喜餅已取件'
+    if (guest.cake_status === 'pickup') return '喜餅已領取'
   }
 
   return '無待辦'
@@ -284,7 +288,9 @@ watch(
   (status) => {
     if (status === 'attend') {
       form.value.decline_response = null
-      form.value.cake_status = 'not_required'
+      if (!['pending_pickup', 'pickup'].includes(form.value.cake_status)) {
+        form.value.cake_status = 'pending_pickup'
+      }
       form.value.shipping_recipient = ''
       form.value.shipping_phone = ''
       form.value.shipping_address = ''
@@ -512,7 +518,7 @@ onMounted(loadGuests)
                   <option value="pending_address">待補地址</option>
                   <option value="pending_send">待寄送</option>
                   <option value="sent">已寄出</option>
-                  <option value="pickup">已取件</option>
+                  <option value="pickup">已領取</option>
                 </select>
               </div>
             </div>

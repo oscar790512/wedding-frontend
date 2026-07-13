@@ -65,7 +65,9 @@ const tableSummary = computed(() => {
   return Array.from(tables.values())
     .map((table) => ({
       ...table,
-      capacity: Math.ceil(Math.max(Number(table.capacity || 0), Number(table.attendees || 0), 12)),
+      capacity: Number(table.capacity || 0) > 0
+        ? Number(table.capacity)
+        : Math.max(Number(table.attendees || 0), 1),
       percent: table.attendees
         ? Math.round((table.arrivedAttendees / table.attendees) * 100)
         : 0,
@@ -271,6 +273,13 @@ function handleGiftInput(guest, value) {
   }, 500)
 
   pendingGiftTimers.set(guest.id, timer)
+}
+
+function handleCakePickupToggle(guest) {
+  if (guest.status !== 'attend') return
+  updateGuestField(guest.id, {
+    cake_status: guest.cake_status === 'pickup' ? 'pending_pickup' : 'pickup',
+  })
 }
 
 function handleActualCountInput(guest, field, value) {
@@ -554,6 +563,9 @@ onMounted(loadGuests)
               <template v-if="guest.actual_adults !== null || guest.actual_children !== null">
                 · 實到 {{ guestAttendeeCount(guest) }} 位
               </template>
+              <template v-if="guest.status === 'attend'">
+                · 喜餅 {{ guest.cake_status === 'pickup' ? '已領取' : '未領取' }}
+              </template>
               <template v-if="dietSummary(guest)"> · {{ dietSummary(guest) }}</template>
             </p>
             <p
@@ -616,6 +628,15 @@ onMounted(loadGuests)
               :value="guest.gift_amount"
               @input="handleGiftInput(guest, $event.target.value)"
             />
+          </label>
+
+          <label v-if="guest.status === 'attend'" class="inline-check cake-pickup-field">
+            <input
+              type="checkbox"
+              :checked="guest.cake_status === 'pickup'"
+              @change="handleCakePickupToggle(guest)"
+            />
+            <span>已領喜餅</span>
           </label>
         </article>
       </div>

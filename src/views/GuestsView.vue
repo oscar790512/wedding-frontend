@@ -222,9 +222,13 @@ function buildPayload() {
     blessing_message:
       form.value.status === 'decline' ? form.value.blessing_message || null : null,
     cake_status:
-      form.value.status === 'decline' && form.value.decline_response === 'request_cake'
-        ? form.value.cake_status
-        : 'not_required',
+      form.value.status === 'attend'
+        ? ['pending_pickup', 'pickup'].includes(form.value.cake_status)
+          ? form.value.cake_status
+          : 'pending_pickup'
+        : form.value.status === 'decline' && form.value.decline_response === 'request_cake'
+          ? form.value.cake_status
+          : 'not_required',
     shipping_recipient:
       form.value.status === 'decline' && form.value.decline_response === 'request_cake'
         ? form.value.shipping_recipient
@@ -323,10 +327,11 @@ function invitationStatusLabel(status) {
 }
 
 function cakeStatusLabel(status) {
+  if (status === 'pending_pickup') return '待現場領餅'
   if (status === 'pending_address') return '待補地址'
   if (status === 'pending_send') return '待寄送'
   if (status === 'sent') return '已寄出'
-  if (status === 'pickup') return '已取件'
+  if (status === 'pickup') return '已領取'
   return '不需要'
 }
 
@@ -383,7 +388,9 @@ watch(
     if (status === 'attend') {
       form.value.decline_response = null
       form.value.blessing_message = ''
-      form.value.cake_status = 'not_required'
+      if (!['pending_pickup', 'pickup'].includes(form.value.cake_status)) {
+        form.value.cake_status = 'pending_pickup'
+      }
       form.value.shipping_recipient = ''
       form.value.shipping_phone = ''
       form.value.shipping_address = ''
@@ -643,7 +650,7 @@ onMounted(loadGuests)
                   <option value="pending_address">待補地址</option>
                   <option value="pending_send">待寄送</option>
                   <option value="sent">已寄出</option>
-                  <option value="pickup">已取件</option>
+                  <option value="pickup">已領取</option>
                 </select>
               </div>
             </div>
@@ -823,6 +830,9 @@ onMounted(loadGuests)
                 <p class="shipping-value">
                   喜帖 {{ invitationStatusLabel(guest.invitation_status) }}
                   <template v-if="guest.decline_response === 'request_cake'">
+                    · 喜餅 {{ cakeStatusLabel(guest.cake_status) }}
+                  </template>
+                  <template v-else-if="guest.status === 'attend'">
                     · 喜餅 {{ cakeStatusLabel(guest.cake_status) }}
                   </template>
                 </p>
