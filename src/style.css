@@ -1043,12 +1043,14 @@ textarea.field-control {
 .guest-name {
   font-weight: 600;
   margin: 0;
+  word-break: keep-all;
 }
 
 .guest-sub {
   color: var(--muted);
   font-size: var(--text-sm);
   margin: 3px 0 0;
+  word-break: keep-all;
 }
 
 .guest-row__details {
@@ -2180,6 +2182,29 @@ textarea.field-control {
 
   .guest-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .checkin-row {
+    align-items: end;
+    grid-template-columns: minmax(132px, 0.8fr) minmax(210px, 1.2fr) minmax(160px, 1fr);
+  }
+
+  .checkin-row > div:first-child {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .checkin-row .btn {
+    min-height: 48px;
+  }
+
+  .checkin-row .cake-pickup-field {
+    justify-self: start;
+  }
+
+  .actual-count-fields label,
+  .gift-field {
+    white-space: nowrap;
   }
 
   .venue-floor-plan {
