@@ -65,6 +65,15 @@
   max-width: 100%;
 }
 
+.checkin-snapshot {
+  border: 1px solid rgba(60, 49, 42, 0.12);
+  border-radius: 8px;
+  display: block;
+  max-height: 460px;
+  max-width: 260px;
+  width: 100%;
+}
+
 .checkin-qr-card,
 .scan-panel,
 .scan-result-card {
@@ -106,10 +115,32 @@
   background: #fff;
 }
 
+.scan-unassigned {
+  color: #b42318;
+  font-weight: 700;
+}
+
 .scan-result-grid {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.toast-message {
+  background: rgba(31, 41, 51, 0.96);
+  border-radius: 8px;
+  bottom: 22px;
+  box-shadow: 0 16px 40px rgba(31, 41, 51, 0.22);
+  color: #fff;
+  font-weight: 700;
+  left: 50%;
+  margin: 0;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 18px;
+  position: fixed;
+  text-align: center;
+  transform: translateX(-50%);
+  z-index: 80;
 }
 
 @media (max-width: 760px) {

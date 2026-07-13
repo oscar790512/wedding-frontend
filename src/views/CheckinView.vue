@@ -191,9 +191,11 @@ async function updateGuestField(guestId, payload) {
 async function updateGuestCheckinField(guestId, payload) {
   try {
     const updated = applyUpdatedGuest(await patchGuestCheckin(guestId, payload))
-    scanStatusMessage.value = updated.is_arrived
-      ? '已確認到場'
-      : '已取消到場'
+    scanStatusMessage.value = scanStatusMessage.value && updated.is_arrived
+      ? `${scanStatusMessage.value}，已確認到場`
+      : updated.is_arrived
+        ? '已確認到場'
+        : '已取消到場'
     errorMessage.value = ''
     scanErrorMessage.value = ''
   } catch (error) {
@@ -247,6 +249,13 @@ function actualCountInputValue(guest, field) {
   return actualCountDrafts.value[guest.id]?.[field] ?? ''
 }
 
+function setActualCountDraftToExpected(guest) {
+  actualCountDrafts.value[guest.id] = {
+    actual_adults: guest.actual_adults ?? guest.total_adults ?? 0,
+    actual_children: guest.actual_children ?? guest.total_children ?? 0,
+  }
+}
+
 function openTableDialog(table) {
   selectedTable.value = table
 }
@@ -283,6 +292,7 @@ async function resolveCheckinToken(tokenValue) {
 
   try {
     const guest = applyUpdatedGuest(await fetchGuestByCheckinToken(token))
+    setActualCountDraftToExpected(guest)
     scannedGuest.value = guest
     attendingOnly.value = false
   } catch (error) {
@@ -320,6 +330,41 @@ function scannedGuestStatusText(guest) {
       : '已到場'
   }
   return '尚未到場'
+}
+
+function tableRemainingSeats(table) {
+  return Math.max(Number(table.capacity || 0) - Number(table.attendees || 0), 0)
+}
+
+function findAvailableTable(requiredSeats) {
+  if (!requiredSeats || requiredSeats < 1) return null
+  return tableSummary.value.find((table) => tableRemainingSeats(table) >= requiredSeats) || null
+}
+
+function buildScannedArrivalPayload() {
+  const guest = scannedGuest.value
+  if (!guest) return null
+
+  const draft = actualCountDrafts.value[guest.id] || {}
+  const actualAdults = normalizeActualCount(draft.actual_adults) ?? Number(guest.total_adults || 0)
+  const actualChildren = normalizeActualCount(draft.actual_children) ?? Number(guest.total_children || 0)
+  const payload = {
+    is_arrived: true,
+    actual_adults: actualAdults,
+    actual_children: actualChildren,
+  }
+
+  if (!hasAssignedTable(guest)) {
+    const assignedTable = findAvailableTable(actualAdults + actualChildren)
+    if (!assignedTable) {
+      scanErrorMessage.value = '目前沒有足夠空位可自動分桌，請先到桌次安排調整座位。'
+      return null
+    }
+    payload.allocated_table = assignedTable.name
+    scanStatusMessage.value = `已自動安排至 ${assignedTable.name}`
+  }
+
+  return payload
 }
 
 function dietSummary(guest) {
@@ -389,12 +434,9 @@ function handleCakePickupToggle(guest) {
 
 function confirmScannedArrival() {
   if (!scannedGuest.value || scannedGuest.value.status !== 'attend') return
-  const draft = actualCountDrafts.value[scannedGuest.value.id] || {}
-  updateGuestCheckinField(scannedGuest.value.id, {
-    is_arrived: true,
-    actual_adults: normalizeActualCount(draft.actual_adults),
-    actual_children: normalizeActualCount(draft.actual_children),
-  })
+  const payload = buildScannedArrivalPayload()
+  if (!payload) return
+  updateGuestCheckinField(scannedGuest.value.id, payload)
 }
 
 function cancelScannedArrival() {
@@ -780,7 +822,9 @@ onBeforeUnmount(() => {
               <p class="guest-name">{{ scannedGuest.name }}</p>
               <p class="guest-sub">
                 {{ scannedGuest.guest_category || '未分類' }} ·
-                {{ scannedGuest.allocated_table || '未分桌' }}
+                <span :class="{ 'scan-unassigned': !hasAssignedTable(scannedGuest) }">
+                  {{ scannedGuest.allocated_table || '未分桌' }}
+                </span>
               </p>
             </div>
             <div class="shipping-item__badges">

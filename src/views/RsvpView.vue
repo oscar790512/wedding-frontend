@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import QRCode from 'qrcode'
 
 import backgroundImage from '../assets/background.jpg'
 import { submitRsvp } from '../api/client'
@@ -43,12 +44,15 @@ const errorMessage = ref('')
 const successMessage = ref('')
 const showLineDialog = ref(false)
 const submittedGuest = ref(null)
+const checkinSnapshotUrl = ref('')
+const toastMessage = ref('')
 const activeSection = ref('rsvp-title')
 let sectionTouchStartX = 0
 let sectionTouchStartY = 0
 let lastSectionNavigationAt = 0
 let sectionObserver = null
 let sectionNavigationLock = null
+let toastTimer = null
 
 const pageSections = [
   { id: 'rsvp-title', label: '邀請' },
@@ -83,6 +87,85 @@ function validatePhone(value, label) {
   }
 
   return ''
+}
+
+function showToast(message) {
+  toastMessage.value = message
+  if (toastTimer) {
+    window.clearTimeout(toastTimer)
+  }
+  toastTimer = window.setTimeout(() => {
+    toastMessage.value = ''
+    toastTimer = null
+  }, 3200)
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = reject
+    image.src = src
+  })
+}
+
+async function createCheckinSnapshot(guest, checkinUrl) {
+  if (!checkinUrl) {
+    checkinSnapshotUrl.value = ''
+    return
+  }
+
+  try {
+    const qrDataUrl = await QRCode.toDataURL(checkinUrl, {
+      width: 280,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#1f2933',
+        light: '#ffffff',
+      },
+    })
+    const qrImage = await loadImage(qrDataUrl)
+    const canvas = document.createElement('canvas')
+    const width = 760
+    const height = 980
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+
+    context.fillStyle = '#fffaf5'
+    context.fillRect(0, 0, width, height)
+    context.fillStyle = '#7b4f3f'
+    context.fillRect(0, 0, width, 18)
+    context.fillRect(0, height - 18, width, 18)
+    context.fillStyle = '#1f2933'
+    context.textAlign = 'center'
+    context.font = '700 44px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+    context.fillText('婚禮報到 QR Code', width / 2, 110)
+    context.font = '600 36px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+    context.fillText(guest.name || '賓客', width / 2, 170)
+    context.font = '28px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+    context.fillStyle = '#5f6b76'
+    context.fillText('婚禮當天請出示此圖給工作人員掃描', width / 2, 220)
+    context.fillStyle = '#ffffff'
+    context.strokeStyle = 'rgba(60, 49, 42, 0.14)'
+    context.lineWidth = 2
+    context.roundRect(190, 275, 380, 380, 12)
+    context.fill()
+    context.stroke()
+    context.drawImage(qrImage, 240, 325, 280, 280)
+    context.fillStyle = '#7b4f3f'
+    context.font = '24px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+    context.fillText('建議長按圖片保存到手機', width / 2, 720)
+    context.fillStyle = '#5f6b76'
+    context.font = '22px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+    context.fillText('掃描後仍需由工作人員確認到場', width / 2, 765)
+
+    checkinSnapshotUrl.value = canvas.toDataURL('image/png')
+    showToast('已產生報到 QR Code 截圖')
+  } catch {
+    checkinSnapshotUrl.value = ''
+  }
 }
 
 watch(
@@ -165,6 +248,7 @@ async function handleSubmit() {
   errorMessage.value = ''
   successMessage.value = ''
   submittedGuest.value = null
+  checkinSnapshotUrl.value = ''
 
   const phoneError = validatePhone(form.phone, '聯絡電話')
   if (phoneError) {
@@ -250,6 +334,12 @@ async function handleSubmit() {
       blessing_message: form.blessing_message.trim() || null,
     })
     submittedGuest.value = savedGuest
+    if (savedGuest.status === 'attend' && savedGuest.checkin_token) {
+      await createCheckinSnapshot(
+        savedGuest,
+        `${window.location.origin}/admin/operations/scan/${savedGuest.checkin_token}`,
+      )
+    }
     successMessage.value =
       form.status === 'decline'
         ? '已收到您的回覆，謝謝您的祝福！'
@@ -363,6 +453,9 @@ onBeforeUnmount(() => {
   }
   if (sectionNavigationLock) {
     window.clearTimeout(sectionNavigationLock)
+  }
+  if (toastTimer) {
+    window.clearTimeout(toastTimer)
   }
 })
 </script>
@@ -747,7 +840,13 @@ onBeforeUnmount(() => {
             <h3>婚禮當天請出示此 QR Code</h3>
             <p class="guest-sub">建議現在先截圖保存，現場工作人員掃描後會協助確認到場。</p>
           </div>
-          <QrCode :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
+          <img
+            v-if="checkinSnapshotUrl"
+            class="checkin-snapshot"
+            :src="checkinSnapshotUrl"
+            alt="報到 QR Code 截圖"
+          />
+          <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
         </div>
 
         <div class="line-follow-card">
@@ -778,5 +877,9 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </div>
+
+    <p v-if="toastMessage" class="toast-message" role="status">
+      {{ toastMessage }}
+    </p>
   </div>
 </template>
