@@ -849,6 +849,14 @@ onBeforeUnmount(() => {
       @click.self="closeLineDialog"
     >
       <section class="dialog-card line-dialog" role="dialog" aria-modal="true">
+        <button
+          class="line-dialog__close"
+          type="button"
+          aria-label="關閉"
+          @click="closeLineDialog"
+        >
+          ×
+        </button>
         <div class="line-dialog__head">
           <div>
             <p class="eyebrow">Line Official</p>
@@ -891,11 +899,6 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <div class="line-dialog__actions">
-          <button class="btn btn-ghost" type="button" @click="closeLineDialog">
-            關閉
-          </button>
-        </div>
       </section>
     </div>
   </div>
