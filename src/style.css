@@ -91,7 +91,17 @@
 }
 
 .checkin-qr-card__hint {
+  background: #7b4f3f;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 16px;
+  font-weight: 800;
+  justify-content: center;
+  line-height: 1.35;
   margin: 0;
+  max-width: 100%;
+  padding: 12px 18px;
   text-align: center;
 }
 
