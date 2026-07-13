@@ -1761,9 +1761,14 @@ textarea.field-control {
   width: 180px;
 }
 
-.line-dialog {
+.line-dialog-shell {
   max-width: 520px;
   position: relative;
+  width: min(100%, 520px);
+}
+
+.line-dialog {
+  width: 100%;
 }
 
 .line-dialog__close {
@@ -1785,7 +1790,7 @@ textarea.field-control {
   right: -14px;
   top: -14px;
   width: 42px;
-  z-index: 2;
+  z-index: 60;
 }
 
 .line-dialog__head {
@@ -2336,8 +2341,8 @@ textarea.field-control {
 
   .line-dialog__close {
     height: 36px;
-    right: -6px;
-    top: -6px;
+    right: -8px;
+    top: -8px;
     width: 36px;
   }
 

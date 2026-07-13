@@ -844,11 +844,11 @@ onBeforeUnmount(() => {
 
     <div
       v-if="showLineDialog"
-      class="dialog-backdrop"
+      class="dialog-backdrop line-dialog-backdrop"
       role="presentation"
       @click.self="closeLineDialog"
     >
-      <section class="dialog-card line-dialog" role="dialog" aria-modal="true">
+      <div class="line-dialog-shell">
         <button
           class="line-dialog__close"
           type="button"
@@ -857,49 +857,50 @@ onBeforeUnmount(() => {
         >
           ×
         </button>
-        <div class="line-dialog__head">
-          <div>
-            <p class="eyebrow">Line Official</p>
-            <h2>加入 Line 官方帳號</h2>
-            <p class="lead">後續婚禮資訊與即時聯繫會透過 Line 更新。</p>
+        <section class="dialog-card line-dialog" role="dialog" aria-modal="true">
+          <div class="line-dialog__head">
+            <div>
+              <p class="eyebrow">Line Official</p>
+              <h2>加入 Line 官方帳號</h2>
+              <p class="lead">後續婚禮資訊與即時聯繫會透過 Line 更新。</p>
+            </div>
           </div>
-        </div>
 
-        <div v-if="submittedCheckinUrl" class="checkin-qr-card">
-          <img
-            v-if="checkinSnapshotUrl"
-            class="checkin-snapshot"
-            :src="checkinSnapshotUrl"
-            alt="報到 QR Code 截圖"
-          />
-          <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
-          <p class="checkin-qr-card__hint">
-            ↑ 長按上方圖片保存報到 QR Code ↑
-          </p>
-        </div>
-
-        <div class="line-follow-card">
-          <a
-            class="line-follow-card__mobile"
-            href="https://lin.ee/PvW0Voh"
-            rel="noopener noreferrer"
-            target="_blank"
-          >
+          <div v-if="submittedCheckinUrl" class="checkin-qr-card">
             <img
-              src="https://scdn.line-apps.com/n/line_add_friends/btn/zh-Hant.png"
-              alt="加入好友"
-              height="36"
-              border="0"
+              v-if="checkinSnapshotUrl"
+              class="checkin-snapshot"
+              :src="checkinSnapshotUrl"
+              alt="報到 QR Code 截圖"
             />
-          </a>
-          <img
-            class="line-follow-card__desktop"
-            src="https://qr-official.line.me/gs/M_287rlhkg_GW.png?oat_content=qr"
-            alt="Line 官方帳號 QR Code"
-          />
-        </div>
+            <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
+            <p class="checkin-qr-card__hint">
+              ↑ 長按上方圖片保存報到 QR Code ↑
+            </p>
+          </div>
 
-      </section>
+          <div class="line-follow-card">
+            <a
+              class="line-follow-card__mobile"
+              href="https://lin.ee/PvW0Voh"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <img
+                src="https://scdn.line-apps.com/n/line_add_friends/btn/zh-Hant.png"
+                alt="加入好友"
+                height="36"
+                border="0"
+              />
+            </a>
+            <img
+              class="line-follow-card__desktop"
+              src="https://qr-official.line.me/gs/M_287rlhkg_GW.png?oat_content=qr"
+              alt="Line 官方帳號 QR Code"
+            />
+          </div>
+        </section>
+      </div>
     </div>
   </div>
 </template>
