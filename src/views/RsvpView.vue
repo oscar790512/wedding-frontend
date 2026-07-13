@@ -45,7 +45,6 @@ const successMessage = ref('')
 const showLineDialog = ref(false)
 const submittedGuest = ref(null)
 const checkinSnapshotUrl = ref('')
-const toastMessage = ref('')
 const activeSection = ref('rsvp-title')
 const showContinueCue = ref(false)
 let sectionTouchStartX = 0
@@ -53,7 +52,6 @@ let sectionTouchStartY = 0
 let lastSectionNavigationAt = 0
 let sectionObserver = null
 let sectionNavigationLock = null
-let toastTimer = null
 let cueFrame = null
 
 const pageSections = [
@@ -89,17 +87,6 @@ function validatePhone(value, label) {
   }
 
   return ''
-}
-
-function showToast(message) {
-  toastMessage.value = message
-  if (toastTimer) {
-    window.clearTimeout(toastTimer)
-  }
-  toastTimer = window.setTimeout(() => {
-    toastMessage.value = ''
-    toastTimer = null
-  }, 3200)
 }
 
 function loadImage(src) {
@@ -161,7 +148,6 @@ async function createCheckinSnapshot(guest, checkinUrl) {
     context.fillText('掃描後仍需由工作人員確認到場', width / 2, 900)
 
     checkinSnapshotUrl.value = canvas.toDataURL('image/png')
-    showToast('已產生報到 QR Code 截圖')
   } catch {
     checkinSnapshotUrl.value = ''
   }
@@ -480,9 +466,6 @@ onBeforeUnmount(() => {
   }
   if (sectionNavigationLock) {
     window.clearTimeout(sectionNavigationLock)
-  }
-  if (toastTimer) {
-    window.clearTimeout(toastTimer)
   }
   if (cueFrame) {
     window.cancelAnimationFrame(cueFrame)
@@ -915,9 +898,5 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </div>
-
-    <p v-if="toastMessage" class="toast-message" role="status">
-      {{ toastMessage }}
-    </p>
   </div>
 </template>
