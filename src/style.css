@@ -1772,20 +1772,19 @@ textarea.field-control {
 }
 
 .line-dialog__close {
-  align-items: center;
   background: var(--bg);
   border: 1px solid var(--border-soft);
   border-radius: 50%;
   box-shadow: 0 10px 28px rgba(31, 23, 20, 0.2);
   color: var(--fg);
   cursor: pointer;
-  display: inline-flex;
-  font-size: 28px;
+  display: grid;
+  font-size: 24px;
   font-weight: 700;
   height: 42px;
-  justify-content: center;
-  line-height: 1;
+  line-height: 0;
   padding: 0;
+  place-items: center;
   position: absolute;
   right: -14px;
   top: -14px;
