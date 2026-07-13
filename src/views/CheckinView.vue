@@ -9,15 +9,24 @@ const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
 const pendingGiftTimers = new Map()
-const pendingActualCountTimers = new Map()
 const attendingOnly = ref(true)
 const selectedTable = ref(null)
 const tableSettings = ref([])
+const actualCountDrafts = ref({})
+const activeTab = ref('checkin')
+const tableNameCollator = new Intl.Collator('zh-Hant', {
+  numeric: true,
+  sensitivity: 'base',
+})
 
 const visibleGuests = computed(() =>
   guests.value.filter((guest) =>
     attendingOnly.value ? guest.status === 'attend' : true,
   ),
+)
+
+const seatedAttendGuests = computed(() =>
+  guests.value.filter((guest) => guest.status === 'attend' && hasAssignedTable(guest)),
 )
 
 const tableSummary = computed(() => {
@@ -26,6 +35,7 @@ const tableSummary = computed(() => {
   for (const setting of tableSettings.value) {
     tables.set(setting.table_name, {
       name: setting.table_name,
+      capacity: Number(setting.capacity || 0),
       guests: [],
       arrivedGuests: [],
       pendingGuests: [],
@@ -35,24 +45,12 @@ const tableSummary = computed(() => {
     })
   }
 
-  for (const guest of guests.value) {
-    if (guest.status !== 'attend') continue
-    const tableName = guest.allocated_table || '未分桌'
+  for (const guest of seatedAttendGuests.value) {
+    const tableName = guest.allocated_table
     const groupSize = guestAttendeeCount(guest)
 
-    if (!tables.has(tableName)) {
-      tables.set(tableName, {
-        name: tableName,
-        guests: [],
-        arrivedGuests: [],
-        pendingGuests: [],
-        attendees: 0,
-        arrivedAttendees: 0,
-        pendingAttendees: 0,
-      })
-    }
-
     const table = tables.get(tableName)
+    if (!table) continue
     table.guests.push(guest)
     table.attendees += groupSize
 
@@ -68,12 +66,50 @@ const tableSummary = computed(() => {
   return Array.from(tables.values())
     .map((table) => ({
       ...table,
+      capacity: Math.ceil(Math.max(Number(table.capacity || 0), Number(table.attendees || 0), 12)),
       percent: table.attendees
         ? Math.round((table.arrivedAttendees / table.attendees) * 100)
         : 0,
     }))
-    .sort((a, b) => b.attendees - a.attendees)
+    .sort((a, b) => tableNameCollator.compare(a.name, b.name))
 })
+
+const mainTable = computed(() =>
+  tableSummary.value.find((table) => table.name === '主桌') || tableSummary.value[0] || null,
+)
+
+const floorTableRows = computed(() => {
+  const tables = tableSummary.value.filter((table) => table.name !== mainTable.value?.name)
+  const rows = []
+  let cursor = 0
+  let rowIndex = 0
+
+  while (cursor < tables.length) {
+    const rowSize = rowIndex % 2 === 0 ? 2 : 4
+    const rowTables = tables.slice(cursor, cursor + rowSize)
+    const leftCount = rowSize === 2
+      ? Math.ceil(rowTables.length / 2)
+      : Math.min(rowTables.length, 2)
+
+    rows.push({
+      id: `table-row-${rowIndex}`,
+      variant: rowSize === 2 ? 'two' : 'four',
+      leftTables: rowTables.slice(0, leftCount),
+      rightTables: rowTables.slice(leftCount),
+    })
+    cursor += rowSize
+    rowIndex += 1
+  }
+
+  return rows
+})
+
+function chairStyle(index, total) {
+  const angle = -90 + (360 / total) * index
+  return {
+    transform: `rotate(${angle}deg) translate(var(--chair-radius)) rotate(${-angle}deg)`,
+  }
+}
 
 async function loadGuests() {
   isLoading.value = true
@@ -86,6 +122,7 @@ async function loadGuests() {
     ])
     guests.value = guestData
     tableSettings.value = settingData
+    syncActualCountDrafts(guestData)
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -100,6 +137,7 @@ async function updateGuestField(guestId, payload) {
     if (index >= 0) {
       guests.value[index] = updated
     }
+    syncActualCountDraft(updated)
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
@@ -118,12 +156,52 @@ function actualChildren(guest) {
   return Number(guest.actual_children ?? guest.total_children ?? 0)
 }
 
+function hasAssignedTable(guest) {
+  return Boolean(String(guest.allocated_table || '').trim())
+}
+
+function normalizeActualCount(value) {
+  return value === '' || value === null || value === undefined
+    ? null
+    : Math.max(Number(value), 0)
+}
+
+function syncActualCountDraft(guest) {
+  actualCountDrafts.value[guest.id] = {
+    actual_adults: guest.actual_adults ?? null,
+    actual_children: guest.actual_children ?? null,
+  }
+}
+
+function syncActualCountDrafts(guestList) {
+  actualCountDrafts.value = Object.fromEntries(
+    guestList.map((guest) => [
+      guest.id,
+      {
+        actual_adults: guest.actual_adults ?? null,
+        actual_children: guest.actual_children ?? null,
+      },
+    ]),
+  )
+}
+
+function actualCountInputValue(guest, field) {
+  return actualCountDrafts.value[guest.id]?.[field] ?? ''
+}
+
 function openTableDialog(table) {
   selectedTable.value = table
 }
 
 function closeTableDialog() {
   selectedTable.value = null
+}
+
+function setActiveTab(tab) {
+  activeTab.value = tab
+  if (tab !== 'tables') {
+    closeTableDialog()
+  }
 }
 
 function dietSummary(guest) {
@@ -147,11 +225,28 @@ function dietSummary(guest) {
 }
 
 function handleArrivedToggle(guest) {
-  updateGuestField(guest.id, { is_arrived: !guest.is_arrived })
+  if (!hasAssignedTable(guest)) return
+
+  if (guest.is_arrived) {
+    updateGuestField(guest.id, {
+      is_arrived: false,
+      actual_adults: 0,
+      actual_children: 0,
+    })
+    return
+  }
+
+  const draft = actualCountDrafts.value[guest.id] || {}
+  updateGuestField(guest.id, {
+    is_arrived: true,
+    actual_adults: normalizeActualCount(draft.actual_adults),
+    actual_children: normalizeActualCount(draft.actual_children),
+  })
 }
 
 function handleGiftInput(guest, value) {
-  guest.gift_amount = value
+  const normalizedValue = value === '' ? '' : Math.max(Math.trunc(Number(value) || 0), 0)
+  guest.gift_amount = normalizedValue
 
   if (pendingGiftTimers.has(guest.id)) {
     clearTimeout(pendingGiftTimers.get(guest.id))
@@ -159,7 +254,7 @@ function handleGiftInput(guest, value) {
 
   const timer = setTimeout(() => {
     updateGuestField(guest.id, {
-      gift_amount: value === '' ? 0 : Number(value),
+      gift_amount: normalizedValue === '' ? 0 : normalizedValue,
     })
     pendingGiftTimers.delete(guest.id)
   }, 500)
@@ -168,21 +263,11 @@ function handleGiftInput(guest, value) {
 }
 
 function handleActualCountInput(guest, field, value) {
-  guest[field] = value === '' ? null : Math.max(Number(value), 0)
-
-  const timerKey = `${guest.id}:${field}`
-  if (pendingActualCountTimers.has(timerKey)) {
-    clearTimeout(pendingActualCountTimers.get(timerKey))
+  if (!actualCountDrafts.value[guest.id]) {
+    syncActualCountDraft(guest)
   }
 
-  const timer = setTimeout(() => {
-    updateGuestField(guest.id, {
-      [field]: guest[field],
-    })
-    pendingActualCountTimers.delete(timerKey)
-  }, 500)
-
-  pendingActualCountTimers.set(timerKey, timer)
+  actualCountDrafts.value[guest.id][field] = normalizeActualCount(value)
 }
 
 function statusLabel(status) {
@@ -227,7 +312,28 @@ onMounted(loadGuests)
       </div>
     </header>
 
-    <section class="ops-panel">
+    <div class="segmented checkin-tabs" role="tablist" aria-label="現場工作台功能切換">
+      <button
+        :class="{ 'is-active': activeTab === 'checkin' }"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'checkin'"
+        @click="setActiveTab('checkin')"
+      >
+        現場搜尋與收禮
+      </button>
+      <button
+        :class="{ 'is-active': activeTab === 'tables' }"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'tables'"
+        @click="setActiveTab('tables')"
+      >
+        桌次簽到
+      </button>
+    </div>
+
+    <section v-if="activeTab === 'tables'" class="ops-panel">
       <div class="section-head">
         <div>
           <p class="eyebrow">Table Planning</p>
@@ -236,28 +342,108 @@ onMounted(loadGuests)
         <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
       </div>
 
-      <div class="table-board">
-        <button
-          v-for="table in tableSummary"
-          :key="table.name"
-          class="table-card table-card--button"
-          type="button"
-          @click="openTableDialog(table)"
-        >
-          <strong>{{ table.name }}</strong>
-          <p class="muted">已簽到賓客人數 / 已安排賓客人數</p>
-          <div class="capacity">
-            <span :style="{ width: `${table.percent}%` }"></span>
+      <div class="venue-floor-plan">
+        <div class="venue-floor-plan__scale">
+          <div class="venue-stage">
+            <span>舞台</span>
           </div>
-          <span class="meta">
-            {{ table.arrivedAttendees }} / {{ table.attendees }} 位
-          </span>
-        </button>
+
+          <div v-if="mainTable" class="venue-main-table">
+            <button
+              class="round-table round-table--main"
+              type="button"
+              @click="openTableDialog(mainTable)"
+            >
+              <span
+                v-for="chair in mainTable.capacity"
+                :key="`main-chair-${chair}`"
+                class="round-table__chair"
+                :class="{ 'is-arrived': chair <= mainTable.arrivedAttendees }"
+                :style="chairStyle(chair - 1, mainTable.capacity)"
+                aria-hidden="true"
+              ></span>
+              <span class="round-table__center">
+                <strong>{{ mainTable.name }}</strong>
+                <span>{{ mainTable.arrivedAttendees }} / {{ mainTable.capacity }}</span>
+              </span>
+            </button>
+          </div>
+
+          <div class="venue-table-rows">
+            <div
+              v-for="row in floorTableRows"
+              :key="row.id"
+              class="venue-table-row"
+              :class="`venue-table-row--${row.variant}`"
+            >
+              <div class="venue-table-side venue-table-side--left">
+                <button
+                  v-for="table in row.leftTables"
+                  :key="table.name"
+                  class="round-table"
+                  type="button"
+                  @click="openTableDialog(table)"
+                >
+                  <span
+                    v-for="chair in table.capacity"
+                    :key="`${table.name}-chair-${chair}`"
+                    class="round-table__chair"
+                    :class="{ 'is-arrived': chair <= table.arrivedAttendees }"
+                    :style="chairStyle(chair - 1, table.capacity)"
+                    aria-hidden="true"
+                  ></span>
+                  <span class="round-table__center">
+                    <strong>{{ table.name }}</strong>
+                    <span>{{ table.arrivedAttendees }} / {{ table.capacity }}</span>
+                  </span>
+                </button>
+              </div>
+
+              <div class="venue-table-side venue-table-side--right">
+                <button
+                  v-for="table in row.rightTables"
+                  :key="table.name"
+                  class="round-table"
+                  type="button"
+                  @click="openTableDialog(table)"
+                >
+                  <span
+                    v-for="chair in table.capacity"
+                    :key="`${table.name}-chair-${chair}`"
+                    class="round-table__chair"
+                    :class="{ 'is-arrived': chair <= table.arrivedAttendees }"
+                    :style="chairStyle(chair - 1, table.capacity)"
+                    aria-hidden="true"
+                  ></span>
+                  <span class="round-table__center">
+                    <strong>{{ table.name }}</strong>
+                    <span>{{ table.arrivedAttendees }} / {{ table.capacity }}</span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="venue-aisle" aria-hidden="true">
+            <span></span>
+            <strong>走 道</strong>
+            <span></span>
+          </div>
+
+          <div class="venue-entry">
+            入口 / 接待
+          </div>
+        </div>
       </div>
+
+      <p v-if="!mainTable" class="message">
+        尚未建立桌次設定
+      </p>
+
     </section>
 
     <div
-      v-if="selectedTable"
+      v-if="activeTab === 'tables' && selectedTable"
       class="dialog-backdrop"
       role="presentation"
       @click.self="closeTableDialog"
@@ -321,7 +507,7 @@ onMounted(loadGuests)
       </section>
     </div>
 
-    <section class="ops-panel checkin-workbench">
+    <section v-if="activeTab === 'checkin'" class="ops-panel checkin-workbench">
       <div class="section-head">
         <div>
           <p class="eyebrow">Check-in</p>
@@ -371,9 +557,16 @@ onMounted(loadGuests)
             class="btn"
             :class="guest.is_arrived ? 'btn-dark' : 'btn-primary'"
             type="button"
+            :disabled="!hasAssignedTable(guest)"
             @click="handleArrivedToggle(guest)"
           >
-            {{ guest.is_arrived ? '取消到場' : '標記到場' }}
+            {{
+              !hasAssignedTable(guest)
+                ? '未分桌不可簽到'
+                : guest.is_arrived
+                  ? '取消到場'
+                  : '標記到場'
+            }}
           </button>
 
           <div class="actual-count-fields">
@@ -384,7 +577,7 @@ onMounted(loadGuests)
                 type="number"
                 min="0"
                 :placeholder="String(guest.total_adults || 0)"
-                :value="guest.actual_adults ?? ''"
+                :value="actualCountInputValue(guest, 'actual_adults')"
                 @input="handleActualCountInput(guest, 'actual_adults', $event.target.value)"
               />
             </label>
@@ -395,7 +588,7 @@ onMounted(loadGuests)
                 type="number"
                 min="0"
                 :placeholder="String(guest.total_children || 0)"
-                :value="guest.actual_children ?? ''"
+                :value="actualCountInputValue(guest, 'actual_children')"
                 @input="handleActualCountInput(guest, 'actual_children', $event.target.value)"
               />
             </label>
@@ -407,7 +600,7 @@ onMounted(loadGuests)
               class="field-control gift-input"
               type="number"
               min="0"
-              step="100"
+              step="1"
               aria-label="禮金金額"
               :value="guest.gift_amount"
               @input="handleGiftInput(guest, $event.target.value)"
