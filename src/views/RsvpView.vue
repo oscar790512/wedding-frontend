@@ -117,7 +117,7 @@ async function createCheckinSnapshot(guest, checkinUrl) {
 
   try {
     const qrDataUrl = await QRCode.toDataURL(checkinUrl, {
-      width: 440,
+      width: 500,
       margin: 2,
       errorCorrectionLevel: 'M',
       color: {
@@ -150,13 +150,13 @@ async function createCheckinSnapshot(guest, checkinUrl) {
     context.fillStyle = '#ffffff'
     context.strokeStyle = 'rgba(60, 49, 42, 0.14)'
     context.lineWidth = 2
-    context.roundRect(105, 245, 550, 550, 12)
+    context.roundRect(70, 235, 620, 620, 12)
     context.fill()
     context.stroke()
-    context.drawImage(qrImage, 160, 300, 440, 440)
+    context.drawImage(qrImage, 130, 295, 500, 500)
     context.fillStyle = '#5f6b76'
     context.font = '22px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
-    context.fillText('掃描後仍需由工作人員確認到場', width / 2, 840)
+    context.fillText('掃描後仍需由工作人員確認到場', width / 2, 900)
 
     checkinSnapshotUrl.value = canvas.toDataURL('image/png')
     showToast('已產生報到 QR Code 截圖')
