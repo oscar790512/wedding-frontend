@@ -835,11 +835,6 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="submittedCheckinUrl" class="checkin-qr-card">
-          <div>
-            <p class="eyebrow">Check-in QR</p>
-            <h3>婚禮當天請出示此 QR Code</h3>
-            <p class="guest-sub">建議現在先截圖保存，現場工作人員掃描後會協助確認到場。</p>
-          </div>
           <img
             v-if="checkinSnapshotUrl"
             class="checkin-snapshot"
@@ -847,6 +842,9 @@ onBeforeUnmount(() => {
             alt="報到 QR Code 截圖"
           />
           <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
+          <p class="guest-sub checkin-qr-card__hint">
+            請長按保存這張報到 QR Code。
+          </p>
         </div>
 
         <div class="line-follow-card">

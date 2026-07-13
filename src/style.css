@@ -87,7 +87,12 @@
 
 .checkin-qr-card {
   align-items: center;
-  grid-template-columns: minmax(0, 1fr) auto;
+  justify-items: center;
+}
+
+.checkin-qr-card__hint {
+  margin: 0;
+  text-align: center;
 }
 
 .qr-dialog {
