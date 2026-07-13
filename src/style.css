@@ -2199,7 +2199,21 @@ textarea.field-control {
   }
 
   .line-dialog .line-follow-card {
+    align-items: center;
+    flex-direction: column;
     padding: 0;
+  }
+
+  .line-dialog .line-follow-card__mobile {
+    display: inline-flex;
+  }
+
+  .line-dialog .line-follow-card__mobile img {
+    height: 52px;
+  }
+
+  .line-dialog .line-follow-card__desktop {
+    display: none;
   }
 
 }
