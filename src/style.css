@@ -2023,6 +2023,7 @@ textarea.field-control {
   padding: 10px 14px;
   position: absolute;
   right: 18px;
+  z-index: 2;
 }
 
 @keyframes rsvpContinueBounce {

@@ -513,9 +513,6 @@ onBeforeUnmount(() => {
           id="wedding-info"
           class="rsvp-info-panel"
           aria-label="婚禮資訊"
-          @touchstart.passive="handleSectionTouchStart"
-          @touchend.passive="handleSectionTouchEnd($event, 'questionnaire', 'rsvp-title')"
-          @wheel="handleSectionWheel($event, 'questionnaire', 'rsvp-title')"
         >
           <p class="eyebrow">Save the Date</p>
           <h2>期待在婚禮現場與您相見。</h2>
@@ -548,7 +545,6 @@ onBeforeUnmount(() => {
             送出回覆後可加入我們的 Line 官方帳號，後續婚禮提醒與座位資訊會在那邊同步。
           </p>
           <button
-            v-if="activeSection === 'wedding-info'"
             class="rsvp-continue-cue"
             type="button"
             aria-label="繼續填寫 RSVP"
