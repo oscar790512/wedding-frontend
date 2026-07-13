@@ -842,8 +842,8 @@ onBeforeUnmount(() => {
             alt="報到 QR Code 截圖"
           />
           <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
-          <p class="guest-sub checkin-qr-card__hint">
-            長按這張圖保存報到 QR Code
+          <p class="checkin-qr-card__hint">
+            ↓ 長按上方圖片保存報到 QR Code ↓
           </p>
         </div>
 

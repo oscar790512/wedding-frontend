@@ -91,18 +91,20 @@
 }
 
 .checkin-qr-card__hint {
-  background: #7b4f3f;
-  border-radius: 999px;
-  color: #fff;
+  background: #fff4c2;
+  border: 3px solid #7b4f3f;
+  border-radius: 8px;
+  color: #1f1714;
   display: inline-flex;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 900;
   justify-content: center;
-  line-height: 1.35;
+  line-height: 1.25;
   margin: 0;
-  max-width: 100%;
-  padding: 12px 18px;
+  max-width: 360px;
+  padding: 14px 18px;
   text-align: center;
+  width: 100%;
 }
 
 .qr-dialog {
