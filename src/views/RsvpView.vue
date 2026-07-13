@@ -858,28 +858,41 @@ onBeforeUnmount(() => {
           ×
         </button>
         <section class="dialog-card line-dialog" role="dialog" aria-modal="true">
-          <div class="line-dialog__head">
-            <div>
-              <p class="eyebrow">Line Official</p>
-              <h2>加入 Line 官方帳號</h2>
-              <p class="lead">後續婚禮資訊與即時聯繫會透過 Line 更新。</p>
+          <div class="line-dialog__main">
+            <div class="line-dialog__head">
+              <div>
+                <p class="eyebrow">Check-in QR</p>
+                <h2>{{ submittedCheckinUrl ? '婚禮報到 QR Code' : '回覆已送出' }}</h2>
+                <p class="lead">
+                  {{
+                    submittedCheckinUrl
+                      ? '婚禮當天請出示此 QR Code 給工作人員掃描。'
+                      : '後續婚禮資訊與即時聯繫會透過 Line 更新。'
+                  }}
+                </p>
+              </div>
+            </div>
+
+            <div v-if="submittedCheckinUrl" class="checkin-qr-card">
+              <img
+                v-if="checkinSnapshotUrl"
+                class="checkin-snapshot"
+                :src="checkinSnapshotUrl"
+                alt="報到 QR Code 截圖"
+              />
+              <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
+              <p class="checkin-qr-card__hint">
+                ↑ 長按上方圖片保存報到 QR Code ↑
+              </p>
             </div>
           </div>
 
-          <div v-if="submittedCheckinUrl" class="checkin-qr-card">
-            <img
-              v-if="checkinSnapshotUrl"
-              class="checkin-snapshot"
-              :src="checkinSnapshotUrl"
-              alt="報到 QR Code 截圖"
-            />
-            <QrCode v-else :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
-            <p class="checkin-qr-card__hint">
-              ↑ 長按上方圖片保存報到 QR Code ↑
-            </p>
-          </div>
-
           <div class="line-follow-card">
+            <div class="line-follow-card__copy">
+              <p class="eyebrow">Line Official</p>
+              <h3>加入 Line 官方帳號</h3>
+              <p>婚禮提醒與座位資訊會在這裡同步。</p>
+            </div>
             <a
               class="line-follow-card__mobile"
               href="https://lin.ee/PvW0Voh"

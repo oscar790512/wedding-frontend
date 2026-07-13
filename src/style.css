@@ -1748,9 +1748,33 @@ textarea.field-control {
   border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   justify-content: center;
   padding: 16px;
+  text-align: center;
+}
+
+.line-follow-card__copy {
+  display: grid;
+  gap: 4px;
+}
+
+.line-follow-card__copy .eyebrow {
+  margin-bottom: 0;
+}
+
+.line-follow-card__copy h3 {
+  color: var(--fg);
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.line-follow-card__copy p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0;
 }
 
 .line-follow-card__mobile {
@@ -1775,11 +1799,17 @@ textarea.field-control {
   align-items: stretch;
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) 240px;
   max-height: calc(100svh - 48px);
   overflow: hidden;
   padding: clamp(14px, 2vw, 20px);
   width: 100%;
+}
+
+.line-dialog__main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
 }
 
 .line-dialog__close {
@@ -1804,8 +1834,7 @@ textarea.field-control {
 }
 
 .line-dialog__head {
-  grid-column: 1 / -1;
-  text-align: center;
+  text-align: left;
 }
 
 .line-dialog__head h2 {
@@ -1815,8 +1844,6 @@ textarea.field-control {
 
 .line-dialog__head .lead {
   font-size: 15px;
-  margin-left: auto;
-  margin-right: auto;
   max-width: 34ch;
 }
 
@@ -2198,6 +2225,7 @@ textarea.field-control {
 
   .line-dialog__head {
     grid-column: auto;
+    text-align: center;
   }
 
   .line-dialog__close {
@@ -2246,6 +2274,10 @@ textarea.field-control {
     padding: 0;
     background: transparent;
     border: 0;
+  }
+
+  .line-dialog .line-follow-card__copy {
+    display: none;
   }
 
   .line-dialog .line-follow-card__mobile {
