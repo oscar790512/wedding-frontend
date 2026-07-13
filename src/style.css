@@ -2145,6 +2145,63 @@ textarea.field-control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dialog-backdrop {
+    padding: 8px;
+  }
+
+  .dialog-card.line-dialog {
+    border-radius: 12px;
+    display: grid;
+    gap: 8px;
+    max-height: calc(100svh - 16px);
+    overflow: hidden;
+    padding: 12px;
+  }
+
+  .line-dialog__close {
+    height: 36px;
+    right: -8px;
+    top: -8px;
+    width: 36px;
+  }
+
+  .line-dialog__head .eyebrow {
+    display: none;
+  }
+
+  .line-dialog__head h2 {
+    font-size: 22px;
+    margin-bottom: 2px;
+  }
+
+  .line-dialog__head .lead {
+    font-size: 13px;
+    line-height: 1.35;
+    margin: 0 auto;
+  }
+
+  .line-dialog .checkin-qr-card {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .line-dialog .checkin-snapshot {
+    max-height: 42svh;
+    max-width: min(300px, 78vw);
+    object-fit: contain;
+  }
+
+  .line-dialog .checkin-qr-card__hint {
+    border-width: 2px;
+    font-size: 14px;
+    max-width: min(300px, 78vw);
+    padding: 8px 10px;
+  }
+
+  .line-dialog .line-follow-card {
+    padding: 0;
+  }
+
 }
 
 @media (max-width: 640px) {
@@ -2323,63 +2380,6 @@ textarea.field-control {
 
   .line-follow-card__desktop {
     display: none;
-  }
-
-  .dialog-backdrop {
-    padding: 8px;
-  }
-
-  .dialog-card.line-dialog {
-    border-radius: 12px;
-    display: grid;
-    gap: 8px;
-    max-height: calc(100svh - 16px);
-    overflow: hidden;
-    padding: 12px;
-  }
-
-  .line-dialog__close {
-    height: 36px;
-    right: -8px;
-    top: -8px;
-    width: 36px;
-  }
-
-  .line-dialog__head .eyebrow {
-    display: none;
-  }
-
-  .line-dialog__head h2 {
-    font-size: 22px;
-    margin-bottom: 2px;
-  }
-
-  .line-dialog__head .lead {
-    font-size: 13px;
-    line-height: 1.35;
-    margin: 0 auto;
-  }
-
-  .line-dialog .checkin-qr-card {
-    gap: 8px;
-    padding: 8px;
-  }
-
-  .line-dialog .checkin-snapshot {
-    max-height: 42svh;
-    max-width: min(300px, 78vw);
-    object-fit: contain;
-  }
-
-  .line-dialog .checkin-qr-card__hint {
-    border-width: 2px;
-    font-size: 14px;
-    max-width: min(300px, 78vw);
-    padding: 8px 10px;
-  }
-
-  .line-dialog .line-follow-card {
-    padding: 0;
   }
 
   .checkin-search {
