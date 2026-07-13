@@ -548,6 +548,7 @@ onBeforeUnmount(() => {
             送出回覆後可加入我們的 Line 官方帳號，後續婚禮提醒與座位資訊會在那邊同步。
           </p>
           <button
+            v-if="activeSection === 'wedding-info'"
             class="rsvp-continue-cue"
             type="button"
             aria-label="繼續填寫 RSVP"
