@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import jsQR from 'jsqr'
 
 import {
   fetchGuestByCheckinToken,
@@ -31,6 +32,9 @@ const activeTab = ref('checkin')
 const scannedGuest = ref(null)
 let scannerStream = null
 let scannerFrame = null
+let scannerCanvas = null
+let scannerContext = null
+let scannerFrameCount = 0
 const tableOrder = computed(() =>
   new Map(tableSettings.value.map((setting, index) => [setting.table_name, index])),
 )
@@ -420,11 +424,6 @@ async function startCameraScan() {
   scanErrorMessage.value = ''
   scanStatusMessage.value = ''
 
-  if (!('BarcodeDetector' in window)) {
-    scanErrorMessage.value = '此裝置或瀏覽器不支援相機掃描，請改用手動搜尋。'
-    return
-  }
-
   try {
     isCameraScanning.value = true
     await nextTick()
@@ -434,6 +433,9 @@ async function startCameraScan() {
     })
     scannerVideo.value.srcObject = scannerStream
     await scannerVideo.value.play()
+    scannerCanvas = document.createElement('canvas')
+    scannerContext = scannerCanvas.getContext('2d', { willReadFrequently: true })
+    scannerFrameCount = 0
     scanCameraFrame()
   } catch {
     stopCameraScan()
@@ -451,23 +453,36 @@ function stopCameraScan() {
     scannerStream.getTracks().forEach((track) => track.stop())
     scannerStream = null
   }
+  scannerCanvas = null
+  scannerContext = null
+  scannerFrameCount = 0
 }
 
 async function scanCameraFrame() {
-  if (!isCameraScanning.value || !scannerVideo.value) return
+  const video = scannerVideo.value
+  if (!isCameraScanning.value || !video || !scannerCanvas || !scannerContext) return
 
   try {
-    const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-    const codes = await detector.detect(scannerVideo.value)
-    if (codes.length > 0) {
-      const rawValue = codes[0].rawValue
+    scannerFrameCount += 1
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && scannerFrameCount % 3 === 0) {
+      scannerCanvas.width = video.videoWidth
+      scannerCanvas.height = video.videoHeight
+      scannerContext.drawImage(video, 0, 0, scannerCanvas.width, scannerCanvas.height)
+      const imageData = scannerContext.getImageData(0, 0, scannerCanvas.width, scannerCanvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert',
+      })
+      if (!code?.data) {
+        scannerFrame = window.requestAnimationFrame(scanCameraFrame)
+        return
+      }
       stopCameraScan()
-      await resolveCheckinToken(rawValue)
+      await resolveCheckinToken(code.data)
       return
     }
   } catch {
     stopCameraScan()
-    scanErrorMessage.value = '掃描失敗，請改用手動搜尋。'
+    scanErrorMessage.value = '掃描失敗，請確認 QR Code 在畫面中央，或改用手動搜尋。'
     return
   }
 
