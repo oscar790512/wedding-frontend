@@ -14,10 +14,9 @@ const selectedTable = ref(null)
 const tableSettings = ref([])
 const actualCountDrafts = ref({})
 const activeTab = ref('checkin')
-const tableNameCollator = new Intl.Collator('zh-Hant', {
-  numeric: true,
-  sensitivity: 'base',
-})
+const tableOrder = computed(() =>
+  new Map(tableSettings.value.map((setting, index) => [setting.table_name, index])),
+)
 
 const visibleGuests = computed(() =>
   guests.value.filter((guest) =>
@@ -71,7 +70,7 @@ const tableSummary = computed(() => {
         ? Math.round((table.arrivedAttendees / table.attendees) * 100)
         : 0,
     }))
-    .sort((a, b) => tableNameCollator.compare(a.name, b.name))
+    .sort((a, b) => (tableOrder.value.get(a.name) ?? Number.MAX_SAFE_INTEGER) - (tableOrder.value.get(b.name) ?? Number.MAX_SAFE_INTEGER))
 })
 
 const mainTable = computed(() =>
@@ -111,6 +110,18 @@ function chairStyle(index, total) {
   }
 }
 
+function normalizeGiftAmount(value) {
+  if (value === '' || value === null || value === undefined) return 0
+  return Math.max(Math.trunc(Number(value) || 0), 0)
+}
+
+function normalizeGuest(guest) {
+  return {
+    ...guest,
+    gift_amount: normalizeGiftAmount(guest.gift_amount),
+  }
+}
+
 async function loadGuests() {
   isLoading.value = true
   errorMessage.value = ''
@@ -120,9 +131,9 @@ async function loadGuests() {
       fetchGuests(searchQuery.value.trim()),
       fetchTableSettings(),
     ])
-    guests.value = guestData
+    guests.value = guestData.map(normalizeGuest)
     tableSettings.value = settingData
-    syncActualCountDrafts(guestData)
+    syncActualCountDrafts(guests.value)
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -132,7 +143,7 @@ async function loadGuests() {
 
 async function updateGuestField(guestId, payload) {
   try {
-    const updated = await patchGuest(guestId, payload)
+    const updated = normalizeGuest(await patchGuest(guestId, payload))
     const index = guests.value.findIndex((guest) => guest.id === guestId)
     if (index >= 0) {
       guests.value[index] = updated
@@ -245,7 +256,7 @@ function handleArrivedToggle(guest) {
 }
 
 function handleGiftInput(guest, value) {
-  const normalizedValue = value === '' ? '' : Math.max(Math.trunc(Number(value) || 0), 0)
+  const normalizedValue = value === '' ? '' : normalizeGiftAmount(value)
   guest.gift_amount = normalizedValue
 
   if (pendingGiftTimers.has(guest.id)) {

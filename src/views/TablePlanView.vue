@@ -19,22 +19,15 @@ const newTableCount = ref(1)
 const defaultCapacity = ref(12)
 const selectedGuestByTable = ref({})
 const tableNameDrafts = ref({})
+const tableSettingsByName = computed(() =>
+  new Map(tableSettings.value.map((setting) => [setting.table_name, setting])),
+)
+
+const tableNames = computed(() => tableSettings.value.map((setting) => setting.table_name))
 
 const attendingGuests = computed(() =>
   guests.value.filter((guest) => guest.status === 'attend'),
 )
-
-const tableNames = computed(() => {
-  const names = new Set(tableSettings.value.map((setting) => setting.table_name))
-
-  for (const guest of attendingGuests.value) {
-    if (guest.allocated_table) {
-      names.add(guest.allocated_table)
-    }
-  }
-
-  return Array.from(names).sort((a, b) => a.localeCompare(b, 'zh-Hant'))
-})
 
 const unassignedGuests = computed(() =>
   attendingGuests.value.filter((guest) => !guest.allocated_table),
@@ -42,7 +35,7 @@ const unassignedGuests = computed(() =>
 
 const tables = computed(() =>
   tableNames.value.map((tableName) => {
-    const setting = tableSettings.value.find((item) => item.table_name === tableName)
+    const setting = tableSettingsByName.value.get(tableName)
     const seatedGuests = attendingGuests.value.filter(
       (guest) => guest.allocated_table === tableName,
     )
@@ -94,6 +87,8 @@ async function loadPlanningData() {
 }
 
 async function renameTable(oldTableName, value) {
+  if (isLockedTableName(oldTableName)) return
+
   const newTableName = value.trim()
   if (!newTableName || newTableName === oldTableName) {
     tableNameDrafts.value = {
@@ -133,10 +128,15 @@ async function renameTable(oldTableName, value) {
 }
 
 function handleTableNameInput(tableName, value) {
+  if (isLockedTableName(tableName)) return
   tableNameDrafts.value = {
     ...tableNameDrafts.value,
     [tableName]: value,
   }
+}
+
+function isLockedTableName(tableName) {
+  return tableName === '主桌'
 }
 
 function nextTableNumber() {
@@ -159,14 +159,21 @@ async function createTables() {
   try {
     const created = []
     for (let index = 0; index < count; index += 1) {
-      let tableName = `第 ${nextNumber} 桌`
-      while (tableNames.value.includes(tableName) || created.includes(tableName)) {
-        nextNumber += 1
+      let tableName = ''
+
+      if (tableNames.value.length === 0 && created.length === 0) {
+        tableName = '主桌'
+      } else {
         tableName = `第 ${nextNumber} 桌`
+        while (tableNames.value.includes(tableName) || created.includes(tableName)) {
+          nextNumber += 1
+          tableName = `第 ${nextNumber} 桌`
+        }
+        nextNumber += 1
       }
+
       created.push(tableName)
       await saveTableSetting({ table_name: tableName, capacity })
-      nextNumber += 1
     }
     await loadPlanningData()
   } catch (error) {
@@ -379,6 +386,7 @@ onMounted(loadPlanningData)
                 <input
                   class="field-control"
                   :value="tableNameDrafts[table.name] ?? table.name"
+                  :disabled="isLockedTableName(table.name)"
                   @input="handleTableNameInput(table.name, $event.target.value)"
                   @blur="renameTable(table.name, $event.target.value)"
                   @keydown.enter.prevent="renameTable(table.name, $event.target.value)"
