@@ -32,6 +32,8 @@ const isSaving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const editingGuestId = ref(null)
+const isGuestFormOpen = ref(false)
+const isAdvancedSearchOpen = ref(false)
 
 function createInitialForm() {
   return {
@@ -145,6 +147,25 @@ function resetForm() {
   successMessage.value = ''
 }
 
+function openGuestForm() {
+  isGuestFormOpen.value = true
+}
+
+function startCreateGuest() {
+  resetForm()
+  openGuestForm()
+}
+
+function closeGuestForm() {
+  if (isSaving.value) return
+  isGuestFormOpen.value = false
+}
+
+function cancelGuestForm() {
+  resetForm()
+  closeGuestForm()
+}
+
 function fillForm(guest) {
   editingGuestId.value = guest.id
   form.value = {
@@ -178,6 +199,7 @@ function fillForm(guest) {
     admin_notes: guest.admin_notes || '',
   }
   successMessage.value = ''
+  openGuestForm()
 }
 
 function buildPayload() {
@@ -252,6 +274,7 @@ async function submitForm() {
 
     resetForm()
     await loadGuests()
+    closeGuestForm()
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -420,15 +443,15 @@ onMounted(loadGuests)
     eyebrow="Guest Management"
     subtitle="完整名單、進階篩選與新刪修查"
   >
-    <header class="admin-top">
+    <header class="admin-top guest-admin-top">
       <div>
         <p class="eyebrow">Guest management</p>
         <h1>完整賓客名單</h1>
         <p class="lead">集中整理 RSVP、桌號、飲食需求、寄送資料、現場狀態與內部備註。</p>
       </div>
       <div class="toolbar">
-        <button class="btn btn-ghost" type="button" @click="resetForm">
-          清空表單
+        <button class="btn btn-primary" type="button" @click="startCreateGuest">
+          新增賓客
         </button>
         <button class="btn btn-primary" type="button" @click="loadGuests">
           重新整理
@@ -444,13 +467,24 @@ onMounted(loadGuests)
     </section>
 
     <section class="shipping-layout">
-      <section class="form-panel shipping-form-panel">
+      <section
+        class="form-panel shipping-form-panel guest-form-dialog"
+        :class="{ 'is-open': isGuestFormOpen }"
+        role="dialog"
+        aria-modal="true"
+        aria-label="賓客表單"
+      >
         <div class="summary-group__head">
           <div>
             <p class="eyebrow">{{ editingGuestId ? 'Edit' : 'Create' }}</p>
             <h2>{{ editingGuestId ? '編輯賓客' : '新增賓客' }}</h2>
           </div>
-          <span class="badge badge-neutral">{{ editingGuestId ? '編輯中' : '新資料' }}</span>
+          <div class="toolbar guest-form-dialog__actions">
+            <span class="badge badge-neutral">{{ editingGuestId ? '編輯中' : '新資料' }}</span>
+            <button class="btn btn-ghost" type="button" @click="closeGuestForm">
+              關閉
+            </button>
+          </div>
         </div>
 
         <form class="form-grid" @submit.prevent="submitForm">
@@ -662,7 +696,7 @@ onMounted(loadGuests)
             <button class="btn btn-primary" type="submit" :disabled="isSaving">
               {{ isSaving ? '儲存中...' : editingGuestId ? '更新賓客' : '新增賓客' }}
             </button>
-            <button class="btn btn-ghost" type="button" @click="resetForm">
+            <button class="btn btn-ghost" type="button" @click="cancelGuestForm">
               取消
             </button>
           </div>
@@ -684,7 +718,16 @@ onMounted(loadGuests)
               />
             </div>
 
-            <div class="form-grid guest-filter-row">
+            <button
+              class="btn btn-ghost guest-advanced-toggle"
+              type="button"
+              :aria-expanded="isAdvancedSearchOpen"
+              @click="isAdvancedSearchOpen = !isAdvancedSearchOpen"
+            >
+              {{ isAdvancedSearchOpen ? '收合進階搜尋' : '進階搜尋' }}
+            </button>
+
+            <div class="form-grid guest-filter-row" :class="{ 'is-open': isAdvancedSearchOpen }">
               <div class="field">
                 <label for="guest-filter-status">出席狀態</label>
                 <select id="guest-filter-status" v-model="statusFilter" class="field-control">

@@ -36,14 +36,6 @@ async function handleSubmit() {
 
 <template>
   <div class="auth-page">
-    <section class="auth-hero">
-      <p class="eyebrow">Wedding System</p>
-      <h1>保留既有登入驗證，重整後台工作區架構。</h1>
-      <p class="auth-hero__lead">
-        管理端登入功能維持原本 JWT 流程。登入後可進入統計大盤、賓客管理與現場工作台。
-      </p>
-    </section>
-
     <form class="card auth-card" @submit.prevent="handleSubmit">
       <p class="eyebrow">Admin Login</p>
       <h2>管理後台登入</h2>

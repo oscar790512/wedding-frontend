@@ -21,7 +21,8 @@ const props = defineProps({
 
 const router = useRouter()
 const { username, clearSession } = useAuth()
-const isSidebarCollapsed = ref(false)
+const sidebarStorageKey = 'adminSidebarCollapsed'
+const isSidebarCollapsed = ref(localStorage.getItem(sidebarStorageKey) === 'true')
 
 const navItems = [
   { to: '/admin/dashboard', label: '統計大盤' },
@@ -38,6 +39,7 @@ function logout() {
 
 function toggleSidebar() {
   isSidebarCollapsed.value = !isSidebarCollapsed.value
+  localStorage.setItem(sidebarStorageKey, String(isSidebarCollapsed.value))
 }
 </script>
 

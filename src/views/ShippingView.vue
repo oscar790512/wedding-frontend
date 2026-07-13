@@ -12,6 +12,8 @@ const isSaving = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const editingGuestId = ref(null)
+const isShippingFormOpen = ref(false)
+const isAdvancedSearchOpen = ref(false)
 
 const createInitialForm = () => ({
   name: '',
@@ -79,6 +81,25 @@ function resetForm() {
   successMessage.value = ''
 }
 
+function openShippingForm() {
+  isShippingFormOpen.value = true
+}
+
+function startCreateShipping() {
+  resetForm()
+  openShippingForm()
+}
+
+function closeShippingForm() {
+  if (isSaving.value) return
+  isShippingFormOpen.value = false
+}
+
+function cancelShippingForm() {
+  resetForm()
+  closeShippingForm()
+}
+
 function fillForm(guest) {
   editingGuestId.value = guest.id
   form.value = {
@@ -102,6 +123,7 @@ function fillForm(guest) {
     admin_notes: guest.admin_notes || '',
   }
   successMessage.value = ''
+  openShippingForm()
 }
 
 function buildPayload() {
@@ -180,6 +202,7 @@ async function submitForm() {
 
     resetForm()
     await loadGuests()
+    closeShippingForm()
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -317,15 +340,15 @@ onMounted(loadGuests)
     eyebrow="Shipping"
     subtitle="列出寄送細節並直接新刪修查"
   >
-    <header class="admin-top">
+    <header class="admin-top guest-admin-top">
       <div>
         <p class="eyebrow">Shipping</p>
         <h1>寄送待辦明細</h1>
         <p class="lead">集中管理喜帖與喜餅寄送對象、地址、狀態與追蹤資訊。</p>
       </div>
       <div class="toolbar">
-        <button class="btn btn-ghost" type="button" @click="resetForm">
-          清空表單
+        <button class="btn btn-primary" type="button" @click="startCreateShipping">
+          新增待辦
         </button>
         <button class="btn btn-primary" type="button" @click="loadGuests">
           重新整理
@@ -341,13 +364,24 @@ onMounted(loadGuests)
     </section>
 
     <section class="shipping-layout">
-      <section class="form-panel shipping-form-panel">
+      <section
+        class="form-panel shipping-form-panel guest-form-dialog"
+        :class="{ 'is-open': isShippingFormOpen }"
+        role="dialog"
+        aria-modal="true"
+        aria-label="寄送待辦表單"
+      >
         <div class="summary-group__head">
           <div>
             <p class="eyebrow">{{ editingGuestId ? 'Edit' : 'Create' }}</p>
             <h2>{{ editingGuestId ? '編輯寄送待辦' : '新增寄送待辦' }}</h2>
           </div>
-          <span class="badge badge-neutral">{{ editingGuestId ? '編輯中' : '新資料' }}</span>
+          <div class="toolbar guest-form-dialog__actions">
+            <span class="badge badge-neutral">{{ editingGuestId ? '編輯中' : '新資料' }}</span>
+            <button class="btn btn-ghost" type="button" @click="closeShippingForm">
+              關閉
+            </button>
+          </div>
         </div>
 
         <form class="form-grid" @submit.prevent="submitForm">
@@ -503,7 +537,7 @@ onMounted(loadGuests)
             <button class="btn btn-primary" type="submit" :disabled="isSaving">
               {{ isSaving ? '儲存中...' : editingGuestId ? '更新待辦' : '新增待辦' }}
             </button>
-            <button class="btn btn-ghost" type="button" @click="resetForm">
+            <button class="btn btn-ghost" type="button" @click="cancelShippingForm">
               取消
             </button>
           </div>
@@ -512,7 +546,7 @@ onMounted(loadGuests)
 
       <section class="shipping-list-panel">
         <section class="panel guest-toolbar">
-          <div class="form-grid two">
+          <div class="form-grid guest-filters-grid">
             <div class="field">
               <label for="shipping-search">搜尋姓名、電話、地址、分類或備註</label>
               <input
@@ -524,23 +558,34 @@ onMounted(loadGuests)
               />
             </div>
 
-            <div class="field">
-              <span class="field-label">待辦篩選</span>
-              <div class="segmented segmented--shipping">
-                <button
-                  v-for="filter in [
-                    ['all', '全部'],
-                    ['pending', '待補 / 待寄'],
-                    ['invitation', '喜帖'],
-                    ['cake', '喜餅'],
-                  ]"
-                  :key="filter[0]"
-                  type="button"
-                  :class="{ 'is-active': shippingFilter === filter[0] }"
-                  @click="shippingFilter = filter[0]"
-                >
-                  {{ filter[1] }}
-                </button>
+            <button
+              class="btn btn-ghost guest-advanced-toggle"
+              type="button"
+              :aria-expanded="isAdvancedSearchOpen"
+              @click="isAdvancedSearchOpen = !isAdvancedSearchOpen"
+            >
+              {{ isAdvancedSearchOpen ? '收合進階搜尋' : '進階搜尋' }}
+            </button>
+
+            <div class="form-grid guest-filter-row" :class="{ 'is-open': isAdvancedSearchOpen }">
+              <div class="field">
+                <span class="field-label">待辦篩選</span>
+                <div class="segmented segmented--shipping">
+                  <button
+                    v-for="filter in [
+                      ['all', '全部'],
+                      ['pending', '待補 / 待寄'],
+                      ['invitation', '喜帖'],
+                      ['cake', '喜餅'],
+                    ]"
+                    :key="filter[0]"
+                    type="button"
+                    :class="{ 'is-active': shippingFilter === filter[0] }"
+                    @click="shippingFilter = filter[0]"
+                  >
+                    {{ filter[1] }}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

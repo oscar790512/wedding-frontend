@@ -724,10 +724,14 @@ textarea.field-control {
   margin-bottom: var(--space-4);
 }
 
+.guest-advanced-toggle {
+  display: inline-flex;
+}
+
 .shipping-layout {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .shipping-form-panel {
@@ -830,9 +834,34 @@ textarea.field-control {
 }
 
 .guest-filter-row {
-  display: grid;
+  display: none;
   gap: var(--space-4);
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.guest-filter-row.is-open {
+  display: grid;
+}
+
+.guest-form-dialog {
+  display: none;
+}
+
+.guest-form-dialog.is-open {
+  background: var(--bg);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 26px 80px rgba(49, 40, 36, 0.28);
+  display: grid;
+  inset: 24px;
+  max-height: calc(100svh - 48px);
+  overflow: auto;
+  position: fixed;
+  top: 24px;
+  z-index: 80;
+}
+
+.guest-form-dialog__actions {
+  align-items: center;
 }
 
 .guest-card {
@@ -872,12 +901,18 @@ textarea.field-control {
     grid-template-columns: 1fr;
   }
 
-  .shipping-form-panel {
+  .shipping-form-panel:not(.guest-form-dialog) {
     position: static;
   }
 
   .guest-filter-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guest-form-dialog.is-open {
+    inset: 12px;
+    max-height: calc(100svh - 24px);
+    top: 12px;
   }
 }
 
@@ -1453,26 +1488,9 @@ textarea.field-control {
   align-items: center;
   background: var(--surface);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-  gap: var(--space-4);
+  justify-items: center;
   min-height: 100vh;
   padding: clamp(22px, 5vw, 48px);
-}
-
-.auth-hero {
-  background: var(--dark);
-  border-radius: var(--radius-lg);
-  color: var(--bg);
-  min-height: 520px;
-  padding: clamp(24px, 5vw, 48px);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-
-.auth-hero .eyebrow,
-.auth-hero .auth-hero__lead {
-  color: color-mix(in oklab, var(--bg), transparent 18%);
 }
 
 .auth-card {
@@ -1481,7 +1499,9 @@ textarea.field-control {
   border-radius: var(--radius-lg);
   display: grid;
   gap: var(--space-4);
+  max-width: 420px;
   padding: clamp(20px, 4vw, 32px);
+  width: min(100%, 420px);
 }
 
 .auth-card__subtitle {
@@ -1506,8 +1526,7 @@ textarea.field-control {
     position: static;
   }
 
-  .admin-layout,
-  .auth-page {
+  .admin-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1524,45 +1543,6 @@ textarea.field-control {
   }
 
   .sidebar {
-    border-bottom: 1px solid var(--border-soft);
-    border-right: 0;
-    padding: 16px 18px;
-  }
-
-  .admin-layout.is-sidebar-collapsed .sidebar {
-    padding: 16px 18px;
-  }
-
-  .admin-layout.is-sidebar-collapsed .sidebar-title,
-  .admin-layout.is-sidebar-collapsed .sidebar-note,
-  .admin-layout.is-sidebar-collapsed .sidebar-user,
-  .admin-layout.is-sidebar-collapsed .side-link-label {
-    display: block;
-  }
-
-  .admin-layout.is-sidebar-collapsed .sidebar-head {
-    justify-content: space-between;
-  }
-
-  .side-group {
-    display: flex;
-    flex-wrap: nowrap;
-    margin-top: 12px;
-    overflow-x: auto;
-    padding-bottom: 2px;
-  }
-
-  .side-link {
-    white-space: nowrap;
-  }
-
-  .admin-layout.is-sidebar-collapsed .side-link {
-    justify-content: space-between;
-    min-height: auto;
-    padding: 10px 12px;
-  }
-
-  .admin-layout.is-sidebar-collapsed .side-link-short {
     display: none;
   }
 
@@ -1574,9 +1554,6 @@ textarea.field-control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .auth-hero {
-    min-height: 320px;
-  }
 }
 
 @media (max-width: 640px) {
@@ -1593,6 +1570,30 @@ textarea.field-control {
 
   .nav-links {
     justify-content: flex-start;
+  }
+
+  .guest-admin-top {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .guest-admin-top > div:first-child {
+    min-width: 0;
+  }
+
+  .guest-admin-top .lead {
+    display: none;
+  }
+
+  .guest-admin-top h1 {
+    font-size: 28px;
+  }
+
+  .guest-admin-top .toolbar {
+    flex: none;
+    justify-content: flex-end;
   }
 
   h1 {
