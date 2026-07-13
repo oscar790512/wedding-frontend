@@ -1743,10 +1743,14 @@ textarea.field-control {
 
 .line-follow-card {
   align-items: center;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(60, 49, 42, 0.1);
+  border-radius: var(--radius-sm);
   display: flex;
+  flex-direction: column;
   gap: 14px;
   justify-content: center;
-  padding: 8px 0;
+  padding: 16px;
 }
 
 .line-follow-card__mobile {
@@ -1757,17 +1761,24 @@ textarea.field-control {
 .line-follow-card__desktop {
   border-radius: var(--radius-sm);
   flex: none;
-  height: 180px;
-  width: 180px;
+  height: 160px;
+  width: 160px;
 }
 
 .line-dialog-shell {
-  max-width: 520px;
+  max-width: 900px;
   position: relative;
-  width: min(100%, 520px);
+  width: min(100%, 900px);
 }
 
 .line-dialog {
+  align-items: stretch;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  max-height: calc(100svh - 48px);
+  overflow: hidden;
+  padding: clamp(14px, 2vw, 20px);
   width: 100%;
 }
 
@@ -1793,19 +1804,37 @@ textarea.field-control {
 }
 
 .line-dialog__head {
+  grid-column: 1 / -1;
   text-align: center;
 }
 
 .line-dialog__head h2 {
-  font-size: clamp(28px, 4vw, 36px);
-  margin-bottom: 8px;
+  font-size: clamp(24px, 3vw, 32px);
+  margin-bottom: 4px;
 }
 
 .line-dialog__head .lead {
-  font-size: var(--text-base);
+  font-size: 15px;
   margin-left: auto;
   margin-right: auto;
-  max-width: 30ch;
+  max-width: 34ch;
+}
+
+.line-dialog .checkin-qr-card {
+  gap: 12px;
+  padding: 12px;
+}
+
+.line-dialog .checkin-snapshot {
+  max-height: min(58svh, 520px);
+  max-width: 360px;
+  object-fit: contain;
+}
+
+.line-dialog .checkin-qr-card__hint {
+  font-size: 16px;
+  max-width: 320px;
+  padding: 10px 12px;
 }
 
 .line-dialog__actions {
@@ -2145,17 +2174,30 @@ textarea.field-control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+}
+
+@media (max-width: 1100px) {
   .dialog-backdrop {
     padding: 8px;
+  }
+
+  .line-dialog-shell {
+    max-width: 520px;
+    width: min(100%, 520px);
   }
 
   .dialog-card.line-dialog {
     border-radius: 12px;
     display: grid;
     gap: 8px;
+    grid-template-columns: 1fr;
     max-height: calc(100svh - 16px);
     overflow: hidden;
     padding: 12px;
+  }
+
+  .line-dialog__head {
+    grid-column: auto;
   }
 
   .line-dialog__close {
@@ -2202,6 +2244,8 @@ textarea.field-control {
     align-items: center;
     flex-direction: column;
     padding: 0;
+    background: transparent;
+    border: 0;
   }
 
   .line-dialog .line-follow-card__mobile {
@@ -2215,7 +2259,6 @@ textarea.field-control {
   .line-dialog .line-follow-card__desktop {
     display: none;
   }
-
 }
 
 @media (max-width: 640px) {
