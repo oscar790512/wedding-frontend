@@ -47,12 +47,14 @@ const submittedGuest = ref(null)
 const checkinSnapshotUrl = ref('')
 const toastMessage = ref('')
 const activeSection = ref('rsvp-title')
+const showContinueCue = ref(false)
 let sectionTouchStartX = 0
 let sectionTouchStartY = 0
 let lastSectionNavigationAt = 0
 let sectionObserver = null
 let sectionNavigationLock = null
 let toastTimer = null
+let cueFrame = null
 
 const pageSections = [
   { id: 'rsvp-title', label: '邀請' },
@@ -380,6 +382,24 @@ function scrollToWeddingInfo() {
   navigateToSection('wedding-info')
 }
 
+function visibleViewportRatio(element) {
+  if (!element) return 0
+  const rect = element.getBoundingClientRect()
+  const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)
+  return Math.max(visibleHeight, 0) / window.innerHeight
+}
+
+function updateContinueCue() {
+  if (cueFrame) return
+
+  cueFrame = window.requestAnimationFrame(() => {
+    cueFrame = null
+    const infoRatio = visibleViewportRatio(document.getElementById('wedding-info'))
+    const formRatio = visibleViewportRatio(document.getElementById('questionnaire'))
+    showContinueCue.value = infoRatio >= 0.5 && formRatio <= 0.5
+  })
+}
+
 function handleSectionTouchStart(event) {
   const touch = event.touches[0]
   sectionTouchStartX = touch.clientX
@@ -449,6 +469,9 @@ onMounted(() => {
     const element = document.getElementById(section.id)
     if (element) sectionObserver.observe(element)
   })
+  updateContinueCue()
+  window.addEventListener('scroll', updateContinueCue, { passive: true })
+  window.addEventListener('resize', updateContinueCue)
 })
 
 onBeforeUnmount(() => {
@@ -461,6 +484,11 @@ onBeforeUnmount(() => {
   if (toastTimer) {
     window.clearTimeout(toastTimer)
   }
+  if (cueFrame) {
+    window.cancelAnimationFrame(cueFrame)
+  }
+  window.removeEventListener('scroll', updateContinueCue)
+  window.removeEventListener('resize', updateContinueCue)
 })
 </script>
 
@@ -507,6 +535,17 @@ onBeforeUnmount(() => {
       </button>
     </nav>
 
+    <button
+      v-if="showContinueCue"
+      class="rsvp-continue-cue"
+      type="button"
+      aria-label="繼續填寫 RSVP"
+      @click="navigateToSection('questionnaire')"
+    >
+      <span>繼續填寫</span>
+      <span aria-hidden="true">↓</span>
+    </button>
+
     <main id="rsvp-form" class="section rsvp-main-section">
       <div class="container rsvp-content-grid">
         <aside
@@ -544,15 +583,6 @@ onBeforeUnmount(() => {
           <p class="rsvp-line-note">
             送出回覆後可加入我們的 Line 官方帳號，後續婚禮提醒與座位資訊會在那邊同步。
           </p>
-          <button
-            class="rsvp-continue-cue"
-            type="button"
-            aria-label="繼續填寫 RSVP"
-            @click="navigateToSection('questionnaire')"
-          >
-            <span>繼續填寫</span>
-            <span aria-hidden="true">↓</span>
-          </button>
         </aside>
 
         <form id="questionnaire" class="form-panel rsvp-form-panel" @submit.prevent="handleSubmit">

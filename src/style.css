@@ -2011,7 +2011,7 @@ textarea.field-control {
   background: var(--fg);
   border: 0;
   border-radius: var(--radius-pill);
-  bottom: 18px;
+  bottom: 24px;
   box-shadow: 0 12px 32px rgba(31, 23, 20, 0.18);
   color: var(--bg);
   cursor: pointer;
@@ -2020,10 +2020,10 @@ textarea.field-control {
   font-size: var(--text-sm);
   font-weight: 800;
   gap: 8px;
-  padding: 10px 14px;
-  position: absolute;
+  padding: 12px 16px;
+  position: fixed;
   right: 18px;
-  z-index: 2;
+  z-index: 45;
 }
 
 @keyframes rsvpContinueBounce {
