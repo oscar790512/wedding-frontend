@@ -114,6 +114,23 @@ export function deleteTableSetting(tableName) {
   )
 }
 
+export function fetchGuestByCheckinToken(token) {
+  return apiRequest(`/api/admin/checkin/${encodeURIComponent(token)}`)
+}
+
+export function resetGuestCheckinToken(guestId) {
+  return apiRequest(`/api/admin/guests/${guestId}/checkin-token/reset`, {
+    method: 'POST',
+  })
+}
+
+export function patchGuestCheckin(guestId, payload) {
+  return apiRequest(`/api/admin/guests/${guestId}/checkin`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function patchGuest(guestId, payload) {
   return apiRequest(`/api/admin/guests/${guestId}`, {
     method: 'PATCH',

@@ -7,8 +7,10 @@ import {
   fetchGuests,
   fetchTableSettings,
   patchGuest,
+  resetGuestCheckinToken,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
+import QrCode from '../components/QrCode.vue'
 
 const CATEGORY_OPTIONS = [
   '男方同事',
@@ -34,6 +36,12 @@ const successMessage = ref('')
 const editingGuestId = ref(null)
 const isGuestFormOpen = ref(false)
 const isAdvancedSearchOpen = ref(false)
+const qrGuest = ref(null)
+
+const qrCheckinUrl = computed(() => {
+  if (!qrGuest.value?.checkin_token) return ''
+  return `${window.location.origin}/admin/operations/scan/${qrGuest.value.checkin_token}`
+})
 
 function createInitialForm() {
   return {
@@ -159,6 +167,14 @@ function startCreateGuest() {
 function closeGuestForm() {
   if (isSaving.value) return
   isGuestFormOpen.value = false
+}
+
+function openQrDialog(guest) {
+  qrGuest.value = guest
+}
+
+function closeQrDialog() {
+  qrGuest.value = null
 }
 
 function cancelGuestForm() {
@@ -300,6 +316,24 @@ async function removeGuest(guest) {
       resetForm()
     }
     successMessage.value = '賓客資料已刪除'
+    await loadGuests()
+  } catch (error) {
+    errorMessage.value = error.message
+  }
+}
+
+async function resetQrCode(guest) {
+  if (!window.confirm(`確定重設 ${guest.name} 的簽到 QR Code？舊 QR Code 會失效。`)) {
+    return
+  }
+
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  try {
+    const updated = await resetGuestCheckinToken(guest.id)
+    qrGuest.value = updated
+    successMessage.value = '簽到 QR Code 已重設'
     await loadGuests()
   } catch (error) {
     errorMessage.value = error.message
@@ -864,6 +898,14 @@ onMounted(loadGuests)
             </div>
 
             <div class="toolbar">
+              <button
+                v-if="guest.status === 'attend'"
+                class="btn btn-ghost"
+                type="button"
+                @click="openQrDialog(guest)"
+              >
+                簽到 QR
+              </button>
               <button class="btn btn-ghost" type="button" @click="fillForm(guest)">
                 編輯
               </button>
@@ -879,5 +921,46 @@ onMounted(loadGuests)
         </section>
       </section>
     </section>
+
+    <div
+      v-if="qrGuest"
+      class="dialog-backdrop"
+      role="presentation"
+      @click.self="closeQrDialog"
+    >
+      <section class="dialog-card qr-dialog" role="dialog" aria-modal="true">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Check-in QR</p>
+            <h2>{{ qrGuest.name }}</h2>
+            <p class="lead">
+              {{ qrGuest.guest_category || '未分類' }} · {{ qrGuest.allocated_table || '未分桌' }}
+            </p>
+          </div>
+          <button class="btn btn-ghost" type="button" @click="closeQrDialog">
+            關閉
+          </button>
+        </div>
+
+        <div v-if="qrCheckinUrl" class="checkin-qr-card">
+          <QrCode :value="qrCheckinUrl" :label="`${qrGuest.name} 簽到 QR Code`" />
+          <p class="guest-sub">
+            可由新人截圖補發給賓客。重設後舊 QR Code 會立即失效。
+          </p>
+        </div>
+        <p v-else class="message">
+          這筆出席資料尚未建立簽到 QR Code，請重設產生一組新的簽到碼。
+        </p>
+
+        <div class="toolbar">
+          <button class="btn btn-primary" type="button" @click="resetQrCode(qrGuest)">
+            重設簽到碼
+          </button>
+          <button class="btn btn-ghost" type="button" @click="closeQrDialog">
+            完成
+          </button>
+        </div>
+      </section>
+    </div>
   </AdminLayout>
 </template>

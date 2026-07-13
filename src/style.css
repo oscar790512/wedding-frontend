@@ -47,6 +47,82 @@
   --dark-panel: #342824;
 }
 
+.qr-code-box {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(60, 49, 42, 0.12);
+  border-radius: 8px;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 220px;
+  min-width: 220px;
+  padding: 12px;
+}
+
+.qr-code-box img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+.checkin-qr-card,
+.scan-panel,
+.scan-result-card {
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(60, 49, 42, 0.12);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.checkin-qr-card {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.qr-dialog {
+  max-width: 560px;
+}
+
+.scanner-frame {
+  background: #111827;
+  border-radius: 8px;
+  display: grid;
+  min-height: 260px;
+  overflow: hidden;
+  place-items: center;
+}
+
+.scanner-frame video {
+  display: block;
+  height: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.scan-result-card {
+  background: #fff;
+}
+
+.scan-result-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 760px) {
+  .checkin-qr-card,
+  .scan-result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-code-box {
+    justify-self: center;
+  }
+}
+
 * {
   box-sizing: border-box;
 }

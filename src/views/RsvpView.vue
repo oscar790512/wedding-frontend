@@ -1,8 +1,9 @@
 <script setup>
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 
 import backgroundImage from '../assets/background.jpg'
 import { submitRsvp } from '../api/client'
+import QrCode from '../components/QrCode.vue'
 
 const form = reactive({
   name: '',
@@ -41,6 +42,7 @@ const isSubmitting = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 const showLineDialog = ref(false)
+const submittedGuest = ref(null)
 const activeSection = ref('rsvp-title')
 let sectionTouchStartX = 0
 let sectionTouchStartY = 0
@@ -53,6 +55,13 @@ const pageSections = [
   { id: 'wedding-info', label: '資訊' },
   { id: 'questionnaire', label: '填寫' },
 ]
+
+const submittedCheckinUrl = computed(() => {
+  if (!submittedGuest.value?.checkin_token || submittedGuest.value.status !== 'attend') {
+    return ''
+  }
+  return `${window.location.origin}/admin/operations/scan/${submittedGuest.value.checkin_token}`
+})
 
 function normalizePhone(value) {
   return value.trim()
@@ -155,6 +164,7 @@ watch(
 async function handleSubmit() {
   errorMessage.value = ''
   successMessage.value = ''
+  submittedGuest.value = null
 
   const phoneError = validatePhone(form.phone, '聯絡電話')
   if (phoneError) {
@@ -211,7 +221,7 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    await submitRsvp({
+    const savedGuest = await submitRsvp({
       ...form,
       phone: normalizePhone(form.phone),
       email: form.email.trim() || null,
@@ -239,6 +249,7 @@ async function handleSubmit() {
           : null,
       blessing_message: form.blessing_message.trim() || null,
     })
+    submittedGuest.value = savedGuest
     successMessage.value =
       form.status === 'decline'
         ? '已收到您的回覆，謝謝您的祝福！'
@@ -728,6 +739,15 @@ onBeforeUnmount(() => {
             <h2>加入 Line 官方帳號</h2>
             <p class="lead">後續婚禮資訊與即時聯繫會透過 Line 更新。</p>
           </div>
+        </div>
+
+        <div v-if="submittedCheckinUrl" class="checkin-qr-card">
+          <div>
+            <p class="eyebrow">Check-in QR</p>
+            <h3>婚禮當天請出示此 QR Code</h3>
+            <p class="guest-sub">建議現在先截圖保存，現場工作人員掃描後會協助確認到場。</p>
+          </div>
+          <QrCode :value="submittedCheckinUrl" label="婚禮簽到 QR Code" />
         </div>
 
         <div class="line-follow-card">

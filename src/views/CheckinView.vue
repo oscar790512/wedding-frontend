@@ -1,19 +1,36 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-import { fetchGuests, fetchTableSettings, patchGuest } from '../api/client'
+import {
+  fetchGuestByCheckinToken,
+  fetchGuests,
+  fetchTableSettings,
+  patchGuest,
+  patchGuestCheckin,
+} from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 
+const route = useRoute()
+const router = useRouter()
 const guests = ref([])
 const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
+const scanErrorMessage = ref('')
+const scanStatusMessage = ref('')
+const isResolvingScan = ref(false)
+const isCameraScanning = ref(false)
+const scannerVideo = ref(null)
 const pendingGiftTimers = new Map()
 const attendingOnly = ref(true)
 const selectedTable = ref(null)
 const tableSettings = ref([])
 const actualCountDrafts = ref({})
 const activeTab = ref('checkin')
+const scannedGuest = ref(null)
+let scannerStream = null
+let scannerFrame = null
 const tableOrder = computed(() =>
   new Map(tableSettings.value.map((setting, index) => [setting.table_name, index])),
 )
@@ -124,6 +141,21 @@ function normalizeGuest(guest) {
   }
 }
 
+function applyUpdatedGuest(updatedGuest) {
+  const updated = normalizeGuest(updatedGuest)
+  const index = guests.value.findIndex((guest) => guest.id === updated.id)
+  if (index >= 0) {
+    guests.value[index] = updated
+  } else {
+    guests.value = [updated, ...guests.value]
+  }
+  if (scannedGuest.value?.id === updated.id) {
+    scannedGuest.value = updated
+  }
+  syncActualCountDraft(updated)
+  return updated
+}
+
 async function loadGuests() {
   isLoading.value = true
   errorMessage.value = ''
@@ -145,15 +177,24 @@ async function loadGuests() {
 
 async function updateGuestField(guestId, payload) {
   try {
-    const updated = normalizeGuest(await patchGuest(guestId, payload))
-    const index = guests.value.findIndex((guest) => guest.id === guestId)
-    if (index >= 0) {
-      guests.value[index] = updated
-    }
-    syncActualCountDraft(updated)
+    applyUpdatedGuest(await patchGuest(guestId, payload))
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
+  }
+}
+
+async function updateGuestCheckinField(guestId, payload) {
+  try {
+    const updated = applyUpdatedGuest(await patchGuestCheckin(guestId, payload))
+    scanStatusMessage.value = updated.is_arrived
+      ? '已確認到場'
+      : '已取消到場'
+    errorMessage.value = ''
+    scanErrorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error.message
+    scanErrorMessage.value = error.message
   }
 }
 
@@ -217,6 +258,66 @@ function setActiveTab(tab) {
   }
 }
 
+function checkinUrlToken(value) {
+  try {
+    const url = new URL(value)
+    const match = url.pathname.match(/\/admin\/operations\/scan\/([^/]+)$/)
+    return match ? decodeURIComponent(match[1]) : value.trim()
+  } catch {
+    return value.trim()
+  }
+}
+
+async function resolveCheckinToken(tokenValue) {
+  const token = checkinUrlToken(tokenValue || '')
+  if (!token) return
+
+  activeTab.value = 'checkin'
+  isResolvingScan.value = true
+  scanErrorMessage.value = ''
+  scanStatusMessage.value = ''
+
+  try {
+    const guest = applyUpdatedGuest(await fetchGuestByCheckinToken(token))
+    scannedGuest.value = guest
+    attendingOnly.value = false
+  } catch (error) {
+    scannedGuest.value = null
+    scanErrorMessage.value = `${error.message}，請改用手動搜尋。`
+  } finally {
+    isResolvingScan.value = false
+  }
+}
+
+function closeScannedGuest() {
+  scannedGuest.value = null
+  scanErrorMessage.value = ''
+  scanStatusMessage.value = ''
+  if (route.name === 'checkin-scan') {
+    router.replace({ name: 'checkin' })
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('zh-TW', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value))
+}
+
+function scannedGuestStatusText(guest) {
+  if (guest.status !== 'attend') return '目前不是出席狀態，不能簽到'
+  if (guest.is_arrived) {
+    return guest.arrived_at
+      ? `已於 ${formatDateTime(guest.arrived_at)} 到場`
+      : '已到場'
+  }
+  return '尚未到場'
+}
+
 function dietSummary(guest) {
   const items = []
   const vegetarianCount =
@@ -241,7 +342,7 @@ function handleArrivedToggle(guest) {
   if (!hasAssignedTable(guest)) return
 
   if (guest.is_arrived) {
-    updateGuestField(guest.id, {
+    updateGuestCheckinField(guest.id, {
       is_arrived: false,
       actual_adults: 0,
       actual_children: 0,
@@ -250,7 +351,7 @@ function handleArrivedToggle(guest) {
   }
 
   const draft = actualCountDrafts.value[guest.id] || {}
-  updateGuestField(guest.id, {
+  updateGuestCheckinField(guest.id, {
     is_arrived: true,
     actual_adults: normalizeActualCount(draft.actual_adults),
     actual_children: normalizeActualCount(draft.actual_children),
@@ -277,8 +378,27 @@ function handleGiftInput(guest, value) {
 
 function handleCakePickupToggle(guest) {
   if (guest.status !== 'attend') return
-  updateGuestField(guest.id, {
+  updateGuestCheckinField(guest.id, {
     cake_status: guest.cake_status === 'pickup' ? 'pending_pickup' : 'pickup',
+  })
+}
+
+function confirmScannedArrival() {
+  if (!scannedGuest.value || scannedGuest.value.status !== 'attend') return
+  const draft = actualCountDrafts.value[scannedGuest.value.id] || {}
+  updateGuestCheckinField(scannedGuest.value.id, {
+    is_arrived: true,
+    actual_adults: normalizeActualCount(draft.actual_adults),
+    actual_children: normalizeActualCount(draft.actual_children),
+  })
+}
+
+function cancelScannedArrival() {
+  if (!scannedGuest.value) return
+  updateGuestCheckinField(scannedGuest.value.id, {
+    is_arrived: false,
+    actual_adults: 0,
+    actual_children: 0,
   })
 }
 
@@ -294,6 +414,64 @@ function statusLabel(status) {
   if (status === 'attend') return '出席'
   if (status === 'decline') return '不出席'
   return '未決定'
+}
+
+async function startCameraScan() {
+  scanErrorMessage.value = ''
+  scanStatusMessage.value = ''
+
+  if (!('BarcodeDetector' in window)) {
+    scanErrorMessage.value = '此裝置或瀏覽器不支援相機掃描，請改用手動搜尋。'
+    return
+  }
+
+  try {
+    isCameraScanning.value = true
+    await nextTick()
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    })
+    scannerVideo.value.srcObject = scannerStream
+    await scannerVideo.value.play()
+    scanCameraFrame()
+  } catch {
+    stopCameraScan()
+    scanErrorMessage.value = '無法開啟相機，請確認權限或改用手動搜尋。'
+  }
+}
+
+function stopCameraScan() {
+  isCameraScanning.value = false
+  if (scannerFrame) {
+    window.cancelAnimationFrame(scannerFrame)
+    scannerFrame = null
+  }
+  if (scannerStream) {
+    scannerStream.getTracks().forEach((track) => track.stop())
+    scannerStream = null
+  }
+}
+
+async function scanCameraFrame() {
+  if (!isCameraScanning.value || !scannerVideo.value) return
+
+  try {
+    const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+    const codes = await detector.detect(scannerVideo.value)
+    if (codes.length > 0) {
+      const rawValue = codes[0].rawValue
+      stopCameraScan()
+      await resolveCheckinToken(rawValue)
+      return
+    }
+  } catch {
+    stopCameraScan()
+    scanErrorMessage.value = '掃描失敗，請改用手動搜尋。'
+    return
+  }
+
+  scannerFrame = window.requestAnimationFrame(scanCameraFrame)
 }
 
 function declineResponseLabel(response) {
@@ -312,7 +490,23 @@ watch(searchQuery, () => {
   searchTimer = setTimeout(loadGuests, 300)
 })
 
-onMounted(loadGuests)
+onMounted(async () => {
+  await loadGuests()
+  if (route.params.token) {
+    await resolveCheckinToken(route.params.token)
+  }
+})
+
+watch(
+  () => route.params.token,
+  (token) => {
+    if (token) resolveCheckinToken(token)
+  },
+)
+
+onBeforeUnmount(() => {
+  stopCameraScan()
+})
 </script>
 
 <template>
@@ -328,7 +522,9 @@ onMounted(loadGuests)
         <p class="lead">婚禮當天可交給工作人員操作的桌號、簽到與禮金工作台。</p>
       </div>
       <div class="toolbar">
-        <button class="btn btn-primary" type="button">現場模式</button>
+        <button class="btn btn-primary" type="button" @click="startCameraScan">
+          掃描 QR
+        </button>
       </div>
     </header>
 
@@ -528,6 +724,135 @@ onMounted(loadGuests)
     </div>
 
     <section v-if="activeTab === 'checkin'" class="ops-panel checkin-workbench">
+      <section class="scan-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">QR Check-in</p>
+            <h2>掃碼快速定位</h2>
+            <p class="lead">掃到 QR Code 後先確認資料，再手動標記到場。</p>
+          </div>
+          <div class="toolbar">
+            <button
+              class="btn btn-primary"
+              type="button"
+              :disabled="isCameraScanning"
+              @click="startCameraScan"
+            >
+              {{ isCameraScanning ? '掃描中...' : '開啟相機掃描' }}
+            </button>
+            <button
+              v-if="isCameraScanning"
+              class="btn btn-ghost"
+              type="button"
+              @click="stopCameraScan"
+            >
+              停止
+            </button>
+          </div>
+        </div>
+
+        <div v-if="isCameraScanning" class="scanner-frame">
+          <video ref="scannerVideo" playsinline muted></video>
+        </div>
+
+        <p v-if="isResolvingScan" class="message">讀取 QR Code 中...</p>
+        <p v-if="scanErrorMessage" class="message message--error">{{ scanErrorMessage }}</p>
+        <p v-if="scanStatusMessage" class="message shipping-success">{{ scanStatusMessage }}</p>
+
+        <article v-if="scannedGuest" class="scan-result-card">
+          <div class="shipping-item__head guest-card__head">
+            <div>
+              <p class="guest-name">{{ scannedGuest.name }}</p>
+              <p class="guest-sub">
+                {{ scannedGuest.guest_category || '未分類' }} ·
+                {{ scannedGuest.allocated_table || '未分桌' }}
+              </p>
+            </div>
+            <div class="shipping-item__badges">
+              <span class="badge" :class="`badge--${scannedGuest.status}`">
+                {{ statusLabel(scannedGuest.status) }}
+              </span>
+              <span
+                class="badge"
+                :class="scannedGuest.is_arrived ? 'badge-success' : 'badge-warn'"
+              >
+                {{ scannedGuestStatusText(scannedGuest) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="scan-result-grid">
+            <div>
+              <p class="shipping-label">RSVP 人數</p>
+              <p class="shipping-value">
+                大人 {{ scannedGuest.total_adults }} / 小孩 {{ scannedGuest.total_children }}
+              </p>
+            </div>
+            <div>
+              <p class="shipping-label">實際到場</p>
+              <div class="actual-count-fields">
+                <label>
+                  大人
+                  <input
+                    class="field-control"
+                    type="number"
+                    min="0"
+                    :placeholder="String(scannedGuest.total_adults || 0)"
+                    :value="actualCountInputValue(scannedGuest, 'actual_adults')"
+                    @input="handleActualCountInput(scannedGuest, 'actual_adults', $event.target.value)"
+                  />
+                </label>
+                <label>
+                  小孩
+                  <input
+                    class="field-control"
+                    type="number"
+                    min="0"
+                    :placeholder="String(scannedGuest.total_children || 0)"
+                    :value="actualCountInputValue(scannedGuest, 'actual_children')"
+                    @input="handleActualCountInput(scannedGuest, 'actual_children', $event.target.value)"
+                  />
+                </label>
+              </div>
+            </div>
+            <div>
+              <p class="shipping-label">喜餅</p>
+              <label v-if="scannedGuest.status === 'attend'" class="inline-check cake-pickup-field">
+                <input
+                  type="checkbox"
+                  :checked="scannedGuest.cake_status === 'pickup'"
+                  @change="handleCakePickupToggle(scannedGuest)"
+                />
+                <span>{{ scannedGuest.cake_status === 'pickup' ? '已領取' : '未領取' }}</span>
+              </label>
+              <p v-else class="shipping-value">不適用</p>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button
+              class="btn btn-primary"
+              type="button"
+              :disabled="scannedGuest.status !== 'attend' || scannedGuest.is_arrived"
+              @click="confirmScannedArrival"
+            >
+              {{ scannedGuest.is_arrived ? '已到場' : '確認到場' }}
+            </button>
+            <button
+              v-if="scannedGuest.is_arrived"
+              class="btn btn-ghost"
+              type="button"
+              @click="cancelScannedArrival"
+            >
+              取消到場
+            </button>
+            <button class="btn btn-ghost" type="button" @click="closeScannedGuest">
+              回到手動搜尋
+            </button>
+          </div>
+        </article>
+      </section>
+
       <div class="section-head">
         <div>
           <p class="eyebrow">Check-in</p>

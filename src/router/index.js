@@ -49,6 +49,12 @@ const router = createRouter({
       component: CheckinView,
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin/operations/scan/:token',
+      name: 'checkin-scan',
+      component: CheckinView,
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
