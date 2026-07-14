@@ -442,6 +442,10 @@ function isRsvpField(element) {
   return element?.classList?.contains('field-control')
 }
 
+function findRsvpField(target) {
+  return target?.closest?.('.field-control') || null
+}
+
 function visibleViewportBounds() {
   const viewport = window.visualViewport
   return {
@@ -486,6 +490,11 @@ function handleRsvpFieldFocus(event) {
   if (!isRsvpField(event.target)) return
   isRsvpFieldFocused.value = true
   scheduleFocusedFieldReposition()
+}
+
+function handleRsvpFieldPointerStart(event) {
+  if (!findRsvpField(event.target)) return
+  isRsvpFieldFocused.value = true
 }
 
 function handleRsvpFieldBlur(event) {
@@ -642,6 +651,8 @@ onBeforeUnmount(() => {
           class="form-panel rsvp-form-panel"
           @focusout="handleRsvpFieldBlur"
           @focusin="handleRsvpFieldFocus"
+          @pointerdown.capture="handleRsvpFieldPointerStart"
+          @touchstart.capture.passive="handleRsvpFieldPointerStart"
           @submit.prevent="handleSubmit"
         >
           <div class="section-head">

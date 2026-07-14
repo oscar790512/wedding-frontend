@@ -2424,6 +2424,7 @@ textarea.field-control {
 
   .public-rsvp--field-focused .rsvp-public-nav {
     pointer-events: none;
+    transition: none;
     transform: translateY(-100%);
   }
 
