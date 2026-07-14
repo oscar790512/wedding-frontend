@@ -1,4 +1,4 @@
-name: Ping RSVP page
+name: Increment cron counter
 
 on:
   schedule:
@@ -6,16 +6,33 @@ on:
   workflow_dispatch:
 
 jobs:
-  ping:
+  increment-counter:
     runs-on: ubuntu-latest
     timeout-minutes: 2
 
     steps:
-      - name: Ping RSVP URL
+      - name: Increment backend cron counter
+        env:
+          BACKEND_API_URL: ${{ secrets.BACKEND_API_URL }}
+          CRON_COUNTER_SECRET: ${{ secrets.CRON_COUNTER_SECRET }}
         run: |
+          if [ -z "$BACKEND_API_URL" ]; then
+            echo "Missing BACKEND_API_URL secret"
+            exit 1
+          fi
+          if [ -z "$CRON_COUNTER_SECRET" ]; then
+            echo "Missing CRON_COUNTER_SECRET secret"
+            exit 1
+          fi
+
+          backend_api_url="${BACKEND_API_URL%/}"
           response=$(curl -sS -o /tmp/response.txt -w "%{http_code}" \
             --max-time 30 \
-            "https://oscar-peiyu-wedding.vercel.app/rsvp")
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-Cron-Secret: $CRON_COUNTER_SECRET" \
+            -d '{"counter_key":"github_cron","amount":1}' \
+            "$backend_api_url/api/admin/cron-counter/increment")
           echo "HTTP status: $response"
           cat /tmp/response.txt | head -c 500
           if [ "$response" -lt 200 ] || [ "$response" -ge 400 ]; then
