@@ -56,7 +56,6 @@ let sectionNavigationLock = null
 let cueFrame = null
 let focusedFieldRepositionTimer = null
 let focusedFieldFrame = null
-let focusedFieldRepositionCount = 0
 
 const pageSections = [
   { id: 'rsvp-title', label: '邀請' },
@@ -453,7 +452,6 @@ function visibleViewportBounds() {
 function repositionFocusedField() {
   const activeElement = document.activeElement
   if (!isRsvpField(activeElement) || !window.matchMedia('(max-width: 640px)').matches) return
-  if (focusedFieldRepositionCount >= 2) return
 
   if (focusedFieldFrame) {
     window.cancelAnimationFrame(focusedFieldFrame)
@@ -466,22 +464,22 @@ function repositionFocusedField() {
     const navHeight = Math.max(navRect?.height || 0, 56)
     const viewport = visibleViewportBounds()
     const visibleTop = viewport.offsetTop + navHeight + 18
-    const visibleHeight = Math.max(viewport.height - navHeight, 220)
-    const desiredTop = visibleTop + visibleHeight * 0.36
     const desiredBottom = viewport.offsetTop + viewport.height - 28
-    const scrollDelta = fieldRect.top - desiredTop
+    let scrollDelta = 0
 
-    if (
-      Math.abs(scrollDelta) > 16
-      && (fieldRect.top < visibleTop || fieldRect.top > desiredTop || fieldRect.bottom > desiredBottom)
-    ) {
-      focusedFieldRepositionCount += 1
+    if (fieldRect.top < visibleTop) {
+      scrollDelta = fieldRect.top - visibleTop
+    } else if (fieldRect.bottom > desiredBottom) {
+      scrollDelta = fieldRect.bottom - desiredBottom
+    }
+
+    if (Math.abs(scrollDelta) > 12) {
       window.scrollBy({ top: scrollDelta })
     }
   })
 }
 
-function scheduleFocusedFieldReposition(delay = 260) {
+function scheduleFocusedFieldReposition(delay = 360) {
   if (focusedFieldRepositionTimer) {
     window.clearTimeout(focusedFieldRepositionTimer)
   }
@@ -494,13 +492,7 @@ function scheduleFocusedFieldReposition(delay = 260) {
 
 function handleRsvpFieldFocus(event) {
   if (!isRsvpField(event.target)) return
-  focusedFieldRepositionCount = 0
   scheduleFocusedFieldReposition()
-}
-
-function handleViewportChange() {
-  if (!isRsvpField(document.activeElement)) return
-  scheduleFocusedFieldReposition(120)
 }
 
 onMounted(() => {
@@ -528,7 +520,6 @@ onMounted(() => {
   updateContinueCue()
   window.addEventListener('scroll', updateContinueCue, { passive: true })
   window.addEventListener('resize', updateContinueCue)
-  window.visualViewport?.addEventListener('resize', handleViewportChange)
 })
 
 onBeforeUnmount(() => {
@@ -549,7 +540,6 @@ onBeforeUnmount(() => {
   }
   window.removeEventListener('scroll', updateContinueCue)
   window.removeEventListener('resize', updateContinueCue)
-  window.visualViewport?.removeEventListener('resize', handleViewportChange)
 })
 </script>
 
