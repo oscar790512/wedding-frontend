@@ -54,6 +54,8 @@ let lastSectionNavigationAt = 0
 let sectionObserver = null
 let sectionNavigationLock = null
 let cueFrame = null
+let focusedFieldRepositionTimer = null
+let focusedFieldFrame = null
 
 const pageSections = [
   { id: 'rsvp-title', label: '邀請' },
@@ -435,6 +437,66 @@ function isNearPanelBottom(element) {
   return rect.bottom <= window.innerHeight + 24
 }
 
+function isRsvpField(element) {
+  return element?.classList?.contains('field-control')
+}
+
+function visibleViewportBounds() {
+  const viewport = window.visualViewport
+  return {
+    height: viewport?.height || window.innerHeight,
+    offsetTop: viewport?.offsetTop || 0,
+  }
+}
+
+function repositionFocusedField() {
+  const activeElement = document.activeElement
+  if (!isRsvpField(activeElement) || !window.matchMedia('(max-width: 640px)').matches) return
+
+  if (focusedFieldFrame) {
+    window.cancelAnimationFrame(focusedFieldFrame)
+  }
+
+  focusedFieldFrame = window.requestAnimationFrame(() => {
+    focusedFieldFrame = null
+    const fieldRect = activeElement.getBoundingClientRect()
+    const navRect = document.querySelector('.rsvp-public-nav')?.getBoundingClientRect()
+    const navHeight = Math.max(navRect?.height || 0, 56)
+    const viewport = visibleViewportBounds()
+    const visibleTop = viewport.offsetTop + navHeight + 18
+    const visibleHeight = Math.max(viewport.height - navHeight, 220)
+    const desiredTop = visibleTop + visibleHeight * 0.34
+    const desiredBottom = viewport.offsetTop + viewport.height - 28
+
+    if (fieldRect.top < visibleTop || fieldRect.top > desiredTop || fieldRect.bottom > desiredBottom) {
+      window.scrollBy({
+        top: fieldRect.top - desiredTop,
+        behavior: 'smooth',
+      })
+    }
+  })
+}
+
+function scheduleFocusedFieldReposition(delay = 260) {
+  if (focusedFieldRepositionTimer) {
+    window.clearTimeout(focusedFieldRepositionTimer)
+  }
+
+  focusedFieldRepositionTimer = window.setTimeout(() => {
+    focusedFieldRepositionTimer = null
+    repositionFocusedField()
+  }, delay)
+}
+
+function handleRsvpFieldFocus(event) {
+  if (!isRsvpField(event.target)) return
+  scheduleFocusedFieldReposition()
+}
+
+function handleViewportChange() {
+  scheduleFocusedFieldReposition(120)
+}
+
 onMounted(() => {
   sectionObserver = new IntersectionObserver(
     (entries) => {
@@ -460,6 +522,8 @@ onMounted(() => {
   updateContinueCue()
   window.addEventListener('scroll', updateContinueCue, { passive: true })
   window.addEventListener('resize', updateContinueCue)
+  window.visualViewport?.addEventListener('resize', handleViewportChange)
+  window.visualViewport?.addEventListener('scroll', handleViewportChange)
 })
 
 onBeforeUnmount(() => {
@@ -472,8 +536,16 @@ onBeforeUnmount(() => {
   if (cueFrame) {
     window.cancelAnimationFrame(cueFrame)
   }
+  if (focusedFieldRepositionTimer) {
+    window.clearTimeout(focusedFieldRepositionTimer)
+  }
+  if (focusedFieldFrame) {
+    window.cancelAnimationFrame(focusedFieldFrame)
+  }
   window.removeEventListener('scroll', updateContinueCue)
   window.removeEventListener('resize', updateContinueCue)
+  window.visualViewport?.removeEventListener('resize', handleViewportChange)
+  window.visualViewport?.removeEventListener('scroll', handleViewportChange)
 })
 </script>
 
@@ -570,7 +642,12 @@ onBeforeUnmount(() => {
           </p>
         </aside>
 
-        <form id="questionnaire" class="form-panel rsvp-form-panel" @submit.prevent="handleSubmit">
+        <form
+          id="questionnaire"
+          class="form-panel rsvp-form-panel"
+          @focusin="handleRsvpFieldFocus"
+          @submit.prevent="handleSubmit"
+        >
           <div class="section-head">
             <div>
               <h2>請告訴我們您的出席資訊。</h2>
