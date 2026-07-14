@@ -48,6 +48,7 @@ const submittedGuest = ref(null)
 const checkinSnapshotUrl = ref('')
 const activeSection = ref('rsvp-title')
 const showContinueCue = ref(false)
+const isRsvpFieldFocused = ref(false)
 let sectionTouchStartX = 0
 let sectionTouchStartY = 0
 let lastSectionNavigationAt = 0
@@ -483,7 +484,16 @@ function scheduleFocusedFieldReposition(delay = 680) {
 
 function handleRsvpFieldFocus(event) {
   if (!isRsvpField(event.target)) return
+  isRsvpFieldFocused.value = true
   scheduleFocusedFieldReposition()
+}
+
+function handleRsvpFieldBlur(event) {
+  if (!isRsvpField(event.target)) return
+
+  window.setTimeout(() => {
+    isRsvpFieldFocused.value = isRsvpField(document.activeElement)
+  }, 80)
 }
 
 onMounted(() => {
@@ -535,7 +545,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="public-rsvp">
+  <div class="public-rsvp" :class="{ 'public-rsvp--field-focused': isRsvpFieldFocused }">
     <nav class="nav rsvp-public-nav">
       <div class="container nav-inner">
         <div class="brand">
@@ -630,6 +640,7 @@ onBeforeUnmount(() => {
         <form
           id="questionnaire"
           class="form-panel rsvp-form-panel"
+          @focusout="handleRsvpFieldBlur"
           @focusin="handleRsvpFieldFocus"
           @submit.prevent="handleSubmit"
         >

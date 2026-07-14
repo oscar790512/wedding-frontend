@@ -1932,6 +1932,7 @@ textarea.field-control {
 
 .rsvp-public-nav {
   background: color-mix(in oklab, #f7fbfd, transparent 12%);
+  transition: transform var(--motion-base) var(--ease-standard);
 }
 
 .rsvp-public-nav .nav-inner {
@@ -2419,6 +2420,11 @@ textarea.field-control {
     align-content: start;
     min-height: auto;
     padding: 22px 22px 78px;
+  }
+
+  .public-rsvp--field-focused .rsvp-public-nav {
+    pointer-events: none;
+    transform: translateY(-100%);
   }
 
   .rsvp-section-nav {
