@@ -445,7 +445,6 @@ function visibleViewportBounds() {
   const viewport = window.visualViewport
   return {
     height: viewport?.height || window.innerHeight,
-    offsetTop: viewport?.offsetTop || 0,
   }
 }
 
@@ -460,26 +459,18 @@ function repositionFocusedField() {
   focusedFieldFrame = window.requestAnimationFrame(() => {
     focusedFieldFrame = null
     const fieldRect = activeElement.getBoundingClientRect()
-    const navRect = document.querySelector('.rsvp-public-nav')?.getBoundingClientRect()
-    const navHeight = Math.max(navRect?.height || 0, 56)
     const viewport = visibleViewportBounds()
-    const visibleTop = viewport.offsetTop + navHeight + 18
-    const desiredBottom = viewport.offsetTop + viewport.height - 28
-    let scrollDelta = 0
+    const desiredBottom = viewport.height - 32
 
-    if (fieldRect.top < visibleTop) {
-      scrollDelta = fieldRect.top - visibleTop
-    } else if (fieldRect.bottom > desiredBottom) {
-      scrollDelta = fieldRect.bottom - desiredBottom
-    }
+    const scrollDelta = fieldRect.bottom - desiredBottom
 
-    if (Math.abs(scrollDelta) > 12) {
+    if (scrollDelta > 12) {
       window.scrollBy({ top: scrollDelta })
     }
   })
 }
 
-function scheduleFocusedFieldReposition(delay = 360) {
+function scheduleFocusedFieldReposition(delay = 680) {
   if (focusedFieldRepositionTimer) {
     window.clearTimeout(focusedFieldRepositionTimer)
   }
