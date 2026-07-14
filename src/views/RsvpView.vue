@@ -37,6 +37,7 @@ const relationshipOptions = [
   '女方朋友',
   '男方家人',
   '女方家人',
+  '長輩朋友',
 ]
 
 const isSubmitting = ref(false)
@@ -68,22 +69,23 @@ const submittedCheckinUrl = computed(() => {
 })
 
 function normalizePhone(value) {
-  return value.trim()
+  return value.replace(/[^\d]/g, '')
 }
 
 function validatePhone(value, label) {
   const trimmed = value.trim()
+  const normalized = normalizePhone(value)
 
   if (!trimmed) {
     return `${label}為必填`
   }
 
-  if (!/^\d+$/.test(trimmed)) {
-    return `${label}格式不正確，請輸入 10 碼數字`
+  if (!/^[\d\s()-]+$/.test(trimmed)) {
+    return `${label}格式不正確，請輸入手機或市話`
   }
 
-  if (trimmed.length !== 10) {
-    return `${label}長度需為 10 碼數字`
+  if (normalized.length < 8 || normalized.length > 10) {
+    return `${label}長度需為 8 到 10 碼數字`
   }
 
   return ''
@@ -590,10 +592,10 @@ onBeforeUnmount(() => {
             class="field-control"
           required
           inputmode="tel"
-          maxlength="10"
-          pattern="\d{10}"
-          placeholder="09xxxxxxxx"
-          title="請輸入 10 碼電話號碼"
+          maxlength="16"
+          pattern="[0-9\s()-]{8,16}"
+          placeholder="手機或市話"
+          title="請輸入手機或市話，可含空白、括號或連字號"
         />
         </div>
 
@@ -657,8 +659,10 @@ onBeforeUnmount(() => {
               id="adult-count"
               v-model.number="form.total_adults"
               class="field-control"
-              type="number"
+              type="text"
+              inputmode="numeric"
               min="1"
+              pattern="[0-9]*"
               required
             />
           </div>
@@ -668,8 +672,10 @@ onBeforeUnmount(() => {
               id="child-count"
               v-model.number="form.total_children"
               class="field-control"
-              type="number"
+              type="text"
+              inputmode="numeric"
               min="0"
+              pattern="[0-9]*"
             />
           </div>
         </div>
@@ -680,8 +686,10 @@ onBeforeUnmount(() => {
             id="child-seats"
           v-model.number="form.child_seats"
             class="field-control"
-          type="number"
+          type="text"
+          inputmode="numeric"
           min="0"
+          pattern="[0-9]*"
           :max="form.total_children"
           placeholder="需要幾張兒童座椅"
         />
@@ -700,8 +708,10 @@ onBeforeUnmount(() => {
               id="vegetarian-count"
               v-model.number="form.vegetarian_count"
               class="field-control"
-              type="number"
+              type="text"
+              inputmode="numeric"
               min="0"
+              pattern="[0-9]*"
               :max="form.total_adults + form.total_children"
               placeholder="需要幾份素食"
             />
@@ -794,11 +804,11 @@ onBeforeUnmount(() => {
                 class="field-control"
                 :disabled="form.use_cake_phone_same"
                 inputmode="tel"
-                maxlength="10"
-                pattern="\d{10}"
+                maxlength="16"
+                pattern="[0-9\s()-]{8,16}"
                 :placeholder="form.use_cake_phone_same ? form.phone || '同填寫人電話' : '請輸入收件電話'"
                 :required="!form.use_cake_phone_same"
-                title="請輸入 10 碼電話號碼"
+                title="請輸入手機或市話，可含空白、括號或連字號"
               />
             </div>
           </div>

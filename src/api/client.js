@@ -1,4 +1,5 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const AUTH_EXPIRED_EVENT = 'wedding-auth-expired'
 
 function isNetworkError(error) {
   return (
@@ -43,6 +44,10 @@ export async function apiRequest(path, options = {}) {
       throw new Error('目前無法連線到報名系統，請稍後再試或聯絡我們。')
     }
     throw error
+  }
+
+  if (response.status === 401 && path !== '/api/auth/login') {
+    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT))
   }
 
   if (!response.ok) {
