@@ -856,7 +856,7 @@ onBeforeUnmount(() => {
         <label class="toggle">
           <input v-model="form.need_invitation" type="checkbox" />
           <span aria-hidden="true"></span>
-          需要寄送喜帖
+          需要寄送紙本喜帖
         </label>
 
         <div v-if="form.need_invitation" class="field">
