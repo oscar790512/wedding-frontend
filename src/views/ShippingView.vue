@@ -4,6 +4,17 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { createGuest, deleteGuest, fetchGuests, patchGuest } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 
+const CATEGORY_OPTIONS = [
+  '男方同事/長官',
+  '女方同事/長官',
+  '男方朋友/同學',
+  '女方朋友/同學',
+  '男方家人',
+  '女方家人',
+  '男方長輩朋友',
+  '女方長輩朋友',
+]
+
 const guests = ref([])
 const searchQuery = ref('')
 const shippingFilter = ref('all')
@@ -411,12 +422,9 @@ onMounted(loadGuests)
               <label for="shipping-category">分類</label>
               <select id="shipping-category" v-model="form.guest_category" class="field-control">
                 <option value="">未分類</option>
-                <option value="男方同事">男方同事</option>
-                <option value="女方同事">女方同事</option>
-                <option value="男方朋友">男方朋友</option>
-                <option value="女方朋友">女方朋友</option>
-                <option value="男方家人">男方家人</option>
-                <option value="女方家人">女方家人</option>
+                <option v-for="option in CATEGORY_OPTIONS" :key="option" :value="option">
+                  {{ option }}
+                </option>
               </select>
             </div>
           </div>

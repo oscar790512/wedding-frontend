@@ -1939,6 +1939,11 @@ textarea.field-control {
   justify-content: center;
 }
 
+.rsvp-public-nav .brand-mark {
+  background: #b42318;
+  color: #ffffff;
+}
+
 .rsvp-hero {
   color: #fffaf7;
   min-height: calc(100svh - 56px);
@@ -2121,6 +2126,10 @@ textarea.field-control {
 .rsvp-mode-field,
 .rsvp-blessing-field {
   margin-top: var(--space-5);
+}
+
+.rsvp-relationship-grid {
+  gap: var(--space-3);
 }
 
 .auth-page {
@@ -2483,6 +2492,10 @@ textarea.field-control {
   .seat-guest,
   .segmented--guests {
     grid-template-columns: 1fr;
+  }
+
+  .form-grid.two.rsvp-relationship-grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   }
 
   .actions .btn,

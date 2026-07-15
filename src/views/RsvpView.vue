@@ -10,7 +10,8 @@ const form = reactive({
   name: '',
   phone: '',
   email: '',
-  guest_category: '',
+  relationship_side: '',
+  relationship_type: '',
   status: 'attend',
   total_adults: 1,
   total_children: 0,
@@ -30,15 +31,15 @@ const form = reactive({
   blessing_message: '',
 })
 
-const relationshipOptions = [
-  '男方同事',
-  '女方同事',
-  '男方朋友',
-  '女方朋友',
-  '男方家人',
-  '女方家人',
-  '長輩朋友',
-]
+const relationshipSideOptions = ['男方', '女方']
+const relationshipTypeOptions = ['同事/長官', '朋友/同學', '家人', '長輩朋友']
+
+const selectedGuestCategory = computed(() => {
+  if (!form.relationship_side || !form.relationship_type) {
+    return ''
+  }
+  return `${form.relationship_side}${form.relationship_type}`
+})
 
 const isSubmitting = ref(false)
 const errorMessage = ref('')
@@ -246,6 +247,11 @@ async function handleSubmit() {
     return
   }
 
+  if (!selectedGuestCategory.value) {
+    errorMessage.value = '請選擇與新人關係'
+    return
+  }
+
   if (form.status === 'attend') {
     if (form.need_invitation && !form.invitation_address.trim()) {
       errorMessage.value = '需要喜帖時請填寫寄送地址'
@@ -295,11 +301,14 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
+    const rsvpPayload = { ...form }
+    delete rsvpPayload.relationship_side
+    delete rsvpPayload.relationship_type
     const savedGuest = await submitRsvp({
-      ...form,
+      ...rsvpPayload,
       phone: normalizePhone(form.phone),
       email: form.email.trim() || null,
-      guest_category: form.guest_category || null,
+      guest_category: selectedGuestCategory.value || null,
       diet_notes: form.diet_notes.trim() || null,
       allergy_notes: form.allergy_notes.trim() || null,
       vegetarian_count: form.need_vegetarian ? form.vegetarian_count : 0,
@@ -668,52 +677,73 @@ onBeforeUnmount(() => {
               <input id="guest-name" v-model="form.name" class="field-control" required maxlength="100" placeholder="請輸入姓名" />
             </div>
 
-        <div class="field">
-          <label for="guest-phone">聯絡電話 <span class="required-mark">*</span></label>
-        <input
-            id="guest-phone"
-          v-model="form.phone"
-            class="field-control"
-          required
-          inputmode="tel"
-          maxlength="16"
-          pattern="[0-9\s()-]{8,16}"
-          placeholder="手機或市話"
-          title="請輸入手機或市話，可含空白、括號或連字號"
-        />
-        </div>
+            <div class="field">
+              <label for="guest-phone">聯絡電話 <span class="required-mark">*</span></label>
+              <input
+                id="guest-phone"
+                v-model="form.phone"
+                class="field-control"
+                required
+                inputmode="tel"
+                maxlength="16"
+                pattern="[0-9\s()-]{8,16}"
+                placeholder="手機或市話"
+                title="請輸入手機或市話，可含空白、括號或連字號"
+              />
+            </div>
+          </div>
 
-        <div class="field">
-          <label for="guest-email">Email</label>
-          <input
-            id="guest-email"
-            v-model="form.email"
-            class="field-control"
-            type="email"
-            maxlength="255"
-            placeholder="用於寄送電子喜帖"
-          />
-        </div>
+          <div class="field">
+            <label for="guest-email">Email</label>
+            <input
+              id="guest-email"
+              v-model="form.email"
+              class="field-control"
+              type="email"
+              maxlength="255"
+              placeholder="用於寄送電子喜帖"
+            />
+          </div>
 
-        <div class="field">
-          <label for="guest-category">與新人關係 <span class="required-mark">*</span></label>
-          <select
-            id="guest-category"
-            v-model="form.guest_category"
-            class="field-control"
-            required
-          >
-            <option value="" disabled>請選擇關係</option>
-            <option
-              v-for="relationship in relationshipOptions"
-              :key="relationship"
-              :value="relationship"
-            >
-              {{ relationship }}
-            </option>
-          </select>
-        </div>
-      </div>
+          <div class="form-grid two rsvp-relationship-grid">
+            <div class="field">
+              <label for="relationship-side">與新人關係 <span class="required-mark">*</span></label>
+              <select
+                id="relationship-side"
+                v-model="form.relationship_side"
+                class="field-control"
+                required
+              >
+                <option value="" disabled>請選擇</option>
+                <option
+                  v-for="side in relationshipSideOptions"
+                  :key="side"
+                  :value="side"
+                >
+                  {{ side }}
+                </option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="relationship-type">關係類型 <span class="required-mark">*</span></label>
+              <select
+                id="relationship-type"
+                v-model="form.relationship_type"
+                class="field-control"
+                required
+              >
+                <option value="" disabled>請選擇關係類型</option>
+                <option
+                  v-for="relationshipType in relationshipTypeOptions"
+                  :key="relationshipType"
+                  :value="relationshipType"
+                >
+                  {{ relationshipType }}
+                </option>
+              </select>
+            </div>
+          </div>
 
       <div class="field rsvp-mode-field">
         <span class="field-label">出席意願 <span class="required-mark">*</span></span>
