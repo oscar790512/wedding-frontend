@@ -9,7 +9,7 @@ import {
 } from '../src/utils/tablePlan.js'
 
 describe('table planning helpers', () => {
-  it('uses actual attendance counts before RSVP counts', () => {
+  it('uses planned RSVP counts for seat planning even when actual counts exist', () => {
     assert.equal(
       guestAttendeeCount({
         total_adults: 4,
@@ -17,7 +17,7 @@ describe('table planning helpers', () => {
         actual_adults: 2,
         actual_children: 1,
       }),
-      3,
+      6,
     )
   })
 

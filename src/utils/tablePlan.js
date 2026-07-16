@@ -1,13 +1,13 @@
 export function guestAttendeeCount(guest) {
-  return actualAdults(guest) + actualChildren(guest)
+  return plannedAdults(guest) + plannedChildren(guest)
 }
 
-export function actualAdults(guest) {
-  return Number(guest.actual_adults ?? guest.total_adults ?? 0)
+export function plannedAdults(guest) {
+  return Number(guest.total_adults ?? 0)
 }
 
-export function actualChildren(guest) {
-  return Number(guest.actual_children ?? guest.total_children ?? 0)
+export function plannedChildren(guest) {
+  return Number(guest.total_children ?? 0)
 }
 
 export function tableAttendeeCount(guests) {

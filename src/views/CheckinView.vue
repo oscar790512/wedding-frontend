@@ -11,6 +11,7 @@ import {
   patchGuestCheckin,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
+import { buildCancelArrivalPayload } from '../utils/checkin'
 
 const route = useRoute()
 const router = useRouter()
@@ -532,11 +533,7 @@ function handleArrivedToggle(guest) {
   if (!hasAssignedTable(guest)) return
 
   if (guest.is_arrived) {
-    updateGuestCheckinField(guest.id, {
-      is_arrived: false,
-      actual_adults: 0,
-      actual_children: 0,
-    })
+    updateGuestCheckinField(guest.id, buildCancelArrivalPayload())
     return
   }
 
@@ -601,11 +598,7 @@ function confirmScannedArrival() {
 
 function cancelScannedArrival() {
   if (!scannedGuest.value) return
-  updateGuestCheckinField(scannedGuest.value.id, {
-    is_arrived: false,
-    actual_adults: 0,
-    actual_children: 0,
-  })
+  updateGuestCheckinField(scannedGuest.value.id, buildCancelArrivalPayload())
 }
 
 function handleActualCountInput(guest, field, value) {
