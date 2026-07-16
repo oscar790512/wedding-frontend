@@ -486,11 +486,11 @@ function dietSummary(guest) {
   if (vegetarianCount > 0) {
     items.push(`素食 ${vegetarianCount}`)
   }
-  if (guest.allergy_notes) {
-    items.push(`特殊：${guest.allergy_notes}`)
-  }
-  if (guest.diet_notes) {
-    items.push(guest.diet_notes)
+  const dietaryNotes = Array.from(
+    new Set([guest.allergy_notes, guest.diet_notes].filter(Boolean)),
+  ).join('；')
+  if (dietaryNotes) {
+    items.push(dietaryNotes)
   }
 
   return items.join(' / ')

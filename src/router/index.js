@@ -7,6 +7,7 @@ import GuestsView from '../views/GuestsView.vue'
 import LoginView from '../views/LoginView.vue'
 import RsvpView from '../views/RsvpView.vue'
 import ShippingView from '../views/ShippingView.vue'
+import SettingsView from '../views/SettingsView.vue'
 import TablePlanView from '../views/TablePlanView.vue'
 
 const router = createRouter({
@@ -41,6 +42,12 @@ const router = createRouter({
       path: '/admin/tables',
       name: 'tables',
       component: TablePlanView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin/settings',
+      name: 'settings',
+      component: SettingsView,
       meta: { requiresAuth: true },
     },
     {

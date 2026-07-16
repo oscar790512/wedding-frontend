@@ -40,9 +40,9 @@ const summaryGroups = computed(() => {
       title: '出席需求',
       items: [
         {
-          label: '飲食需求組數',
+          label: '素食份數',
           value: summary.value.vegetarian_count,
-          hint: '以 diet notes 是否有填寫計算',
+          hint: '依 RSVP 填寫的素食人數加總',
         },
         {
           label: '喜帖需求',

@@ -14,6 +14,7 @@ export function buildRsvpPayload(form, guestCategory) {
   const rsvpPayload = { ...form }
   delete rsvpPayload.relationship_side
   delete rsvpPayload.relationship_type
+  delete rsvpPayload.allergy_notes
 
   return {
     ...rsvpPayload,
@@ -21,7 +22,6 @@ export function buildRsvpPayload(form, guestCategory) {
     email: form.email.trim() || null,
     guest_category: guestCategory || null,
     diet_notes: form.diet_notes.trim() || null,
-    allergy_notes: form.allergy_notes.trim() || null,
     vegetarian_count: form.need_vegetarian ? form.vegetarian_count : 0,
     child_seats: form.total_children > 0 ? form.child_seats : 0,
     invitation_address: form.need_invitation

@@ -3,8 +3,9 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 
 import backgroundImage from '../assets/background-2.jpg'
-import { submitRsvp } from '../api/client'
+import { fetchRsvpSettings, submitRsvp } from '../api/client'
 import QrCode from '../components/QrCode.vue'
+import { formatWeddingDate } from '../utils/date'
 import {
   buildRsvpPayload,
   cakePhoneDisplayValue,
@@ -23,7 +24,6 @@ const form = reactive({
   total_children: 0,
   need_vegetarian: false,
   vegetarian_count: 0,
-  allergy_notes: '',
   child_seats: 0,
   diet_notes: '',
   need_invitation: false,
@@ -38,7 +38,7 @@ const form = reactive({
 })
 
 const relationshipSideOptions = ['男方', '女方']
-const relationshipTypeOptions = ['同事/長官', '朋友/同學', '家人', '長輩朋友']
+const relationshipTypeOptions = ['同事/長官', '朋友/同學', '家人', '長輩朋友', '其他']
 
 const selectedGuestCategory = computed(() => {
   if (!form.relationship_side || !form.relationship_type) {
@@ -56,6 +56,7 @@ const checkinSnapshotUrl = ref('')
 const activeSection = ref('rsvp-title')
 const showContinueCue = ref(false)
 const isRsvpFieldFocused = ref(false)
+const rsvpDeadline = ref('')
 let sectionTouchStartX = 0
 let sectionTouchStartY = 0
 let lastSectionNavigationAt = 0
@@ -77,6 +78,7 @@ const submittedCheckinUrl = computed(() => {
   }
   return `${window.location.origin}/admin/operations/scan/${submittedGuest.value.checkin_token}`
 })
+const formattedRsvpDeadline = computed(() => formatWeddingDate(rsvpDeadline.value))
 const cakeRecipientValue = computed(() => cakeRecipientDisplayValue(form))
 const cakePhoneValue = computed(() => cakePhoneDisplayValue(form))
 
@@ -200,7 +202,6 @@ watch(
   (needVegetarian) => {
     if (!needVegetarian) {
       form.vegetarian_count = 0
-      form.allergy_notes = ''
     }
   },
 )
@@ -213,7 +214,6 @@ watch(
       form.total_children = 0
       form.need_vegetarian = false
       form.vegetarian_count = 0
-      form.allergy_notes = ''
       form.child_seats = 0
       form.diet_notes = ''
       form.need_invitation = false
@@ -329,6 +329,15 @@ async function handleSubmit() {
 
 function closeLineDialog() {
   showLineDialog.value = false
+}
+
+async function loadRsvpSettings() {
+  try {
+    const settings = await fetchRsvpSettings()
+    rsvpDeadline.value = settings.rsvp_deadline || ''
+  } catch {
+    rsvpDeadline.value = ''
+  }
 }
 
 function scrollToElement(elementId) {
@@ -491,6 +500,7 @@ function handleRsvpFieldBlur(event) {
 }
 
 onMounted(() => {
+  loadRsvpSettings()
   sectionObserver = new IntersectionObserver(
     (entries) => {
       const visibleEntry = entries
@@ -625,6 +635,10 @@ onBeforeUnmount(() => {
               <dt>回覆內容</dt>
               <dd>出席人數、飲食需求、喜帖或喜餅寄送資訊</dd>
             </div>
+            <div v-if="formattedRsvpDeadline">
+              <dt>回覆截止</dt>
+              <dd>{{ formattedRsvpDeadline }}前</dd>
+            </div>
           </dl>
           <p class="rsvp-line-note">
             送出回覆後可加入我們的 Line 官方帳號，後續婚禮提醒與座位資訊會在那邊同步。
@@ -646,6 +660,10 @@ onBeforeUnmount(() => {
             </div>
             <span class="badge badge-neutral">* 為必填欄位</span>
           </div>
+
+          <p v-if="formattedRsvpDeadline" class="rsvp-deadline-note">
+            請於 {{ formattedRsvpDeadline }}前完成回覆。
+          </p>
 
           <div class="form-grid two">
             <div class="field">
@@ -791,41 +809,29 @@ onBeforeUnmount(() => {
           需要素食
         </label>
 
-        <div v-if="form.need_vegetarian" class="form-grid two">
-          <div class="field">
-            <label for="vegetarian-count">素食人數</label>
-            <input
-              id="vegetarian-count"
-              v-model.number="form.vegetarian_count"
-              class="field-control"
-              type="text"
-              inputmode="numeric"
-              min="0"
-              pattern="[0-9]*"
-              :max="form.total_adults + form.total_children"
-              placeholder="需要幾份素食"
-            />
-          </div>
-          <div class="field">
-            <label for="allergy-notes">過敏 / 特殊飲食</label>
-            <input
-              id="allergy-notes"
-              v-model="form.allergy_notes"
-              class="field-control"
-              maxlength="500"
-              placeholder="例如：花生過敏、不吃牛"
-            />
-          </div>
+        <div v-if="form.need_vegetarian" class="field">
+          <label for="vegetarian-count">素食人數</label>
+          <input
+            id="vegetarian-count"
+            v-model.number="form.vegetarian_count"
+            class="field-control"
+            type="text"
+            inputmode="numeric"
+            min="0"
+            pattern="[0-9]*"
+            :max="form.total_adults + form.total_children"
+            placeholder="需要幾份素食"
+          />
         </div>
 
         <div class="field">
-          <label for="diet-notes">其他飲食備註</label>
+          <label for="diet-notes">過敏／特殊飲食</label>
           <input
             id="diet-notes"
             v-model="form.diet_notes"
             class="field-control"
             maxlength="500"
-            placeholder="其他需要新人知道的飲食需求"
+            placeholder="例如：花生過敏、不吃牛或其他飲食需求"
           />
         </div>
 
@@ -933,6 +939,10 @@ onBeforeUnmount(() => {
       <p v-if="errorMessage" class="message message--error">{{ errorMessage }}</p>
       <p v-if="successMessage" class="success-note is-visible">
         {{ successMessage }}
+      </p>
+
+      <p class="rsvp-privacy-note">
+        聯絡電話、Email 與地址僅用於婚禮通知及喜帖／喜餅寄送。
       </p>
 
       <div class="actions">

@@ -30,6 +30,7 @@ const navItems = [
   { to: '/admin/shipping', label: '寄送待辦' },
   { to: '/admin/tables', label: '桌次安排' },
   { to: '/admin/operations', label: '現場工作台' },
+  { to: '/admin/settings', label: '系統設定' },
 ]
 
 function logout() {

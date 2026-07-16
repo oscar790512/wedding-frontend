@@ -21,6 +21,8 @@ const CATEGORY_OPTIONS = [
   '女方家人',
   '男方長輩朋友',
   '女方長輩朋友',
+  '男方其他',
+  '女方其他',
 ]
 
 const guests = ref([])
@@ -57,7 +59,6 @@ function createInitialForm() {
     child_seats: 0,
     vegetarian_count: 0,
     diet_notes: '',
-    allergy_notes: '',
     need_invitation: false,
     invitation_address: '',
     invitation_status: 'not_required',
@@ -118,6 +119,12 @@ const listStats = computed(() => {
 
 function normalizeQueryValue(value) {
   return value === 'all' ? undefined : value
+}
+
+function combinedDietNotes(guest) {
+  return Array.from(
+    new Set([guest.allergy_notes, guest.diet_notes].filter(Boolean)),
+  ).join('；')
 }
 
 async function loadGuests() {
@@ -196,8 +203,7 @@ function fillForm(guest) {
     total_children: Number(guest.total_children || 0),
     child_seats: Number(guest.child_seats || 0),
     vegetarian_count: Number(guest.vegetarian_count || 0),
-    diet_notes: guest.diet_notes || '',
-    allergy_notes: guest.allergy_notes || '',
+    diet_notes: combinedDietNotes(guest),
     need_invitation: Boolean(guest.need_invitation),
     invitation_address: guest.invitation_address || '',
     invitation_status: guest.invitation_status || 'not_required',
@@ -232,7 +238,7 @@ function buildPayload() {
     child_seats: Number(form.value.child_seats || 0),
     vegetarian_count: Number(form.value.vegetarian_count || 0),
     diet_notes: form.value.diet_notes || null,
-    allergy_notes: form.value.allergy_notes || null,
+    allergy_notes: null,
     need_invitation: form.value.need_invitation,
     invitation_address: form.value.need_invitation ? form.value.invitation_address : null,
     invitation_status: form.value.need_invitation ? form.value.invitation_status : 'not_required',
@@ -394,11 +400,9 @@ function dietSummary(guest) {
   if (vegetarianCount > 0) {
     items.push(`素食 ${vegetarianCount}`)
   }
-  if (guest.allergy_notes) {
-    items.push(`過敏：${guest.allergy_notes}`)
-  }
-  if (guest.diet_notes) {
-    items.push(guest.diet_notes)
+  const dietaryNotes = combinedDietNotes(guest)
+  if (dietaryNotes) {
+    items.push(dietaryNotes)
   }
 
   return items.join(' / ') || '無特殊飲食需求'
@@ -444,7 +448,6 @@ watch(
       form.value.child_seats = 0
       form.value.vegetarian_count = 0
       form.value.diet_notes = ''
-      form.value.allergy_notes = ''
     }
   },
 )
@@ -601,15 +604,14 @@ onMounted(loadGuests)
             </div>
           </div>
 
-          <div class="form-grid two">
-            <div class="field">
-              <label for="guest-diet">飲食備註</label>
-              <textarea id="guest-diet" v-model="form.diet_notes" class="field-control" />
-            </div>
-            <div class="field">
-              <label for="guest-allergy">過敏 / 特殊需求</label>
-              <textarea id="guest-allergy" v-model="form.allergy_notes" class="field-control" />
-            </div>
+          <div class="field">
+            <label for="guest-diet">過敏／特殊飲食</label>
+            <textarea
+              id="guest-diet"
+              v-model="form.diet_notes"
+              class="field-control"
+              placeholder="例如：花生過敏、不吃牛或其他飲食需求"
+            />
           </div>
 
           <div class="shipping-switches">

@@ -65,6 +65,10 @@ export function submitRsvp(payload) {
   })
 }
 
+export function fetchRsvpSettings() {
+  return apiRequest('/api/rsvp/settings')
+}
+
 export function login(username, password) {
   return apiRequest('/api/auth/login', {
     method: 'POST',
@@ -74,6 +78,17 @@ export function login(username, password) {
 
 export function fetchSummary() {
   return apiRequest('/api/admin/summary')
+}
+
+export function fetchAdminRsvpSettings() {
+  return apiRequest('/api/admin/settings/rsvp')
+}
+
+export function updateAdminRsvpSettings(payload) {
+  return apiRequest('/api/admin/settings/rsvp', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
 }
 
 export function fetchGuests(query = '') {
