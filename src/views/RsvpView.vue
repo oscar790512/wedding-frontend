@@ -5,6 +5,12 @@ import QRCode from 'qrcode'
 import backgroundImage from '../assets/background-2.jpg'
 import { submitRsvp } from '../api/client'
 import QrCode from '../components/QrCode.vue'
+import {
+  buildRsvpPayload,
+  cakePhoneDisplayValue,
+  cakeRecipientDisplayValue,
+  normalizePhone,
+} from '../utils/rsvpForm'
 
 const form = reactive({
   name: '',
@@ -71,10 +77,8 @@ const submittedCheckinUrl = computed(() => {
   }
   return `${window.location.origin}/admin/operations/scan/${submittedGuest.value.checkin_token}`
 })
-
-function normalizePhone(value) {
-  return value.replace(/[^\d]/g, '')
-}
+const cakeRecipientValue = computed(() => cakeRecipientDisplayValue(form))
+const cakePhoneValue = computed(() => cakePhoneDisplayValue(form))
 
 function validatePhone(value, label) {
   const trimmed = value.trim()
@@ -301,37 +305,9 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    const rsvpPayload = { ...form }
-    delete rsvpPayload.relationship_side
-    delete rsvpPayload.relationship_type
-    const savedGuest = await submitRsvp({
-      ...rsvpPayload,
-      phone: normalizePhone(form.phone),
-      email: form.email.trim() || null,
-      guest_category: selectedGuestCategory.value || null,
-      diet_notes: form.diet_notes.trim() || null,
-      allergy_notes: form.allergy_notes.trim() || null,
-      vegetarian_count: form.need_vegetarian ? form.vegetarian_count : 0,
-      child_seats: form.total_children > 0 ? form.child_seats : 0,
-      invitation_address: form.need_invitation
-        ? form.invitation_address.trim()
-        : null,
-      decline_response:
-        form.status === 'decline' ? form.decline_response : null,
-      shipping_recipient:
-        form.status === 'decline' && form.decline_response === 'request_cake'
-          ? (form.use_cake_recipient_same ? form.name.trim() : form.shipping_recipient.trim())
-          : null,
-      shipping_phone:
-        form.status === 'decline' && form.decline_response === 'request_cake'
-          ? (form.use_cake_phone_same ? normalizePhone(form.phone) : normalizePhone(form.shipping_phone))
-          : null,
-      shipping_address:
-        form.status === 'decline' && form.decline_response === 'request_cake'
-          ? form.shipping_address.trim()
-          : null,
-      blessing_message: form.blessing_message.trim() || null,
-    })
+    const savedGuest = await submitRsvp(
+      buildRsvpPayload(form, selectedGuestCategory.value),
+    )
     submittedGuest.value = savedGuest
     if (savedGuest.status === 'attend' && savedGuest.checkin_token) {
       await createCheckinSnapshot(
@@ -895,12 +871,13 @@ onBeforeUnmount(() => {
               </div>
               <input
                 id="cake-recipient"
-                v-model="form.shipping_recipient"
+                :value="cakeRecipientValue"
                 class="field-control"
                 :disabled="form.use_cake_recipient_same"
                 maxlength="100"
                 :placeholder="form.use_cake_recipient_same ? form.name || '同填寫人姓名' : '請輸入收件人'"
                 :required="!form.use_cake_recipient_same"
+                @input="form.shipping_recipient = $event.target.value"
               />
             </div>
 
@@ -914,7 +891,7 @@ onBeforeUnmount(() => {
               </div>
               <input
                 id="cake-phone"
-                v-model="form.shipping_phone"
+                :value="cakePhoneValue"
                 class="field-control"
                 :disabled="form.use_cake_phone_same"
                 inputmode="tel"
@@ -923,6 +900,7 @@ onBeforeUnmount(() => {
                 :placeholder="form.use_cake_phone_same ? form.phone || '同填寫人電話' : '請輸入收件電話'"
                 :required="!form.use_cake_phone_same"
                 title="請輸入手機或市話，可含空白、括號或連字號"
+                @input="form.shipping_phone = $event.target.value"
               />
             </div>
           </div>
