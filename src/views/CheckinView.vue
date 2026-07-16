@@ -332,6 +332,21 @@ function scannedGuestStatusText(guest) {
   return '尚未到場'
 }
 
+function guestCategoryBadgeClass(category) {
+  if (!category) return 'badge-neutral'
+  if (category.startsWith('男方')) return 'badge-groom'
+  if (category.startsWith('女方')) return 'badge-bride'
+  return 'badge-neutral'
+}
+
+function checkinBadgeClass(guest) {
+  return guest.is_arrived ? 'badge-success' : 'badge-danger'
+}
+
+function checkinBadgeLabel(guest) {
+  return guest.is_arrived ? '已簽到' : '未簽到'
+}
+
 function tableRemainingSeats(table) {
   return Math.max(Number(table.capacity || 0) - Number(table.attendees || 0), 0)
 }
@@ -816,29 +831,47 @@ onBeforeUnmount(() => {
         <p v-if="scanErrorMessage" class="message message--error">{{ scanErrorMessage }}</p>
         <p v-if="scanStatusMessage" class="message shipping-success">{{ scanStatusMessage }}</p>
 
-        <article v-if="scannedGuest" class="scan-result-card">
-          <div class="shipping-item__head guest-card__head">
+      </section>
+
+      <div
+        v-if="scannedGuest"
+        class="dialog-backdrop"
+        role="presentation"
+        @click.self="closeScannedGuest"
+      >
+        <article class="dialog-card scan-result-dialog" role="dialog" aria-modal="true">
+          <div class="scan-result-head">
             <div>
-              <p class="guest-name">{{ scannedGuest.name }}</p>
-              <p class="guest-sub">
-                {{ scannedGuest.guest_category || '未分類' }} ·
-                <span :class="{ 'scan-unassigned': !hasAssignedTable(scannedGuest) }">
+              <p class="eyebrow">Scan Result</p>
+              <h2>{{ scannedGuest.name }}</h2>
+              <div class="scan-result-badges">
+                <span
+                  class="badge"
+                  :class="guestCategoryBadgeClass(scannedGuest.guest_category)"
+                >
+                  {{ scannedGuest.guest_category || '未分類' }}
+                </span>
+                <span
+                  class="badge"
+                  :class="{ 'badge-danger': !hasAssignedTable(scannedGuest), 'badge-neutral': hasAssignedTable(scannedGuest) }"
+                >
                   {{ scannedGuest.allocated_table || '未分桌' }}
                 </span>
-              </p>
+              </div>
             </div>
-            <div class="shipping-item__badges">
+            <div class="scan-result-status">
               <span class="badge" :class="`badge--${scannedGuest.status}`">
                 {{ statusLabel(scannedGuest.status) }}
               </span>
-              <span
-                class="badge"
-                :class="scannedGuest.is_arrived ? 'badge-success' : 'badge-warn'"
-              >
-                {{ scannedGuestStatusText(scannedGuest) }}
+              <span class="badge" :class="checkinBadgeClass(scannedGuest)">
+                {{ checkinBadgeLabel(scannedGuest) }}
               </span>
             </div>
           </div>
+
+          <p class="message scan-result-status-note">
+            {{ scannedGuestStatusText(scannedGuest) }}
+          </p>
 
           <div class="scan-result-grid">
             <div>
@@ -888,14 +921,14 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="toolbar">
+          <div class="toolbar scan-result-actions">
             <button
               class="btn btn-primary"
               type="button"
               :disabled="scannedGuest.status !== 'attend' || scannedGuest.is_arrived"
               @click="confirmScannedArrival"
             >
-              {{ scannedGuest.is_arrived ? '已到場' : '確認到場' }}
+              {{ scannedGuest.is_arrived ? '已簽到' : '確認簽到' }}
             </button>
             <button
               v-if="scannedGuest.is_arrived"
@@ -903,14 +936,14 @@ onBeforeUnmount(() => {
               type="button"
               @click="cancelScannedArrival"
             >
-              取消到場
+              取消簽到
             </button>
             <button class="btn btn-ghost" type="button" @click="closeScannedGuest">
-              回到手動搜尋
+              關閉
             </button>
           </div>
         </article>
-      </section>
+      </div>
 
       <div class="section-head">
         <div>

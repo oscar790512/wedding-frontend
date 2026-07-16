@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import QRCode from 'qrcode'
 
-import backgroundImage from '../assets/background.jpg'
+import backgroundImage from '../assets/SOY05117修雙下巴_修瘦_牙齒美白.jpg'
 import { submitRsvp } from '../api/client'
 import QrCode from '../components/QrCode.vue'
 

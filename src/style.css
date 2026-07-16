@@ -132,6 +132,45 @@
   background: #fff;
 }
 
+.scan-result-dialog {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 760px;
+}
+
+.scan-result-head {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.scan-result-head h2 {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1;
+  margin: 4px 0 12px;
+}
+
+.scan-result-badges,
+.scan-result-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scan-result-status {
+  justify-content: flex-end;
+}
+
+.scan-result-status-note {
+  margin: 0;
+}
+
+.scan-result-actions {
+  justify-content: flex-end;
+}
+
 .scan-unassigned {
   color: #b42318;
   font-weight: 700;
@@ -147,6 +186,15 @@
   .checkin-qr-card,
   .scan-result-grid {
     grid-template-columns: 1fr;
+  }
+
+  .scan-result-head,
+  .scan-result-status {
+    justify-content: flex-start;
+  }
+
+  .scan-result-head {
+    display: grid;
   }
 
   .qr-code-box {
@@ -480,6 +528,16 @@ h3 {
 .badge--decline {
   background: color-mix(in oklab, var(--danger), white 88%);
   color: color-mix(in oklab, var(--danger), black 20%);
+}
+
+.badge-groom {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge-bride {
+  background: #fce7f3;
+  color: #be185d;
 }
 
 .field {
@@ -1952,20 +2010,20 @@ textarea.field-control {
 }
 
 .rsvp-hero__image {
-  filter: saturate(0.92);
+  filter: saturate(0.98);
   height: 100%;
   inset: 0;
   object-fit: cover;
-  object-position: center 66%;
-  opacity: 0.68;
+  object-position: center 44%;
+  opacity: 0.9;
   position: absolute;
   width: 100%;
 }
 
 .rsvp-hero__shade {
   background:
-    linear-gradient(90deg, rgba(24, 22, 20, 0.82) 0%, rgba(24, 22, 20, 0.52) 40%, rgba(24, 22, 20, 0.16) 78%),
-    linear-gradient(180deg, rgba(11, 18, 22, 0.18) 0%, rgba(11, 18, 22, 0.1) 45%, rgba(11, 18, 22, 0.64) 100%);
+    linear-gradient(90deg, rgba(24, 22, 20, 0.54) 0%, rgba(24, 22, 20, 0.28) 42%, rgba(24, 22, 20, 0.06) 78%),
+    linear-gradient(180deg, rgba(11, 18, 22, 0.04) 0%, rgba(11, 18, 22, 0.02) 48%, rgba(11, 18, 22, 0.32) 100%);
   inset: 0;
   position: absolute;
 }
@@ -1987,13 +2045,13 @@ textarea.field-control {
 }
 
 .rsvp-hero h1 {
-  font-size: clamp(56px, 9vw, 118px);
-  max-width: 760px;
+  font-size: clamp(52px, 6rem, 92px);
+  max-width: 640px;
 }
 
 .rsvp-hero .lead {
-  font-size: clamp(18px, 2vw, 24px);
-  max-width: 34ch;
+  font-size: clamp(17px, 1.25rem, 21px);
+  max-width: 32ch;
 }
 
 .rsvp-hero__cta {
@@ -2392,27 +2450,32 @@ textarea.field-control {
   }
 
   .rsvp-hero__image {
-    object-position: 56% bottom;
+    object-position: 58% 44%;
   }
 
   .rsvp-hero__shade {
     background:
-      linear-gradient(180deg, rgba(16, 24, 28, 0.66) 0%, rgba(16, 24, 28, 0.4) 38%, rgba(16, 24, 28, 0.78) 100%);
+      linear-gradient(180deg, rgba(16, 24, 28, 0.34) 0%, rgba(16, 24, 28, 0.14) 38%, rgba(16, 24, 28, 0.44) 100%);
   }
 
   .rsvp-hero__content {
     justify-content: flex-start;
     padding-bottom: 84px;
-    padding-top: 144px;
+    padding-top: 84px;
   }
 
   .rsvp-hero h1 {
-    font-size: 44px;
+    font-size: 40px;
+    max-width: none;
   }
 
   .rsvp-hero .lead {
     font-size: 16px;
     max-width: 25ch;
+  }
+
+  .rsvp-hero__cta {
+    margin-top: var(--space-6);
   }
 
   .rsvp-main-section {
