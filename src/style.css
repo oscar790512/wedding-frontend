@@ -1788,8 +1788,16 @@ textarea.field-control {
   padding: 14px;
 }
 
+.checkin-guest-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .checkin-row .btn,
-.checkin-row .badge {
+.checkin-row > .btn,
+.checkin-row > .badge {
   justify-self: stretch;
   text-align: center;
 }

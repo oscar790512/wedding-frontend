@@ -11,7 +11,11 @@ import {
   patchGuestCheckin,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
-import { buildCancelArrivalPayload } from '../utils/checkin'
+import {
+  buildCheckinExportRow,
+  buildCancelArrivalPayload,
+  phoneLastThreeDigits,
+} from '../utils/checkin'
 
 const route = useRoute()
 const router = useRouter()
@@ -253,26 +257,8 @@ function compareGuestsForCheckinExport(a, b) {
   return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
 }
 
-function phoneLastThree(phone) {
-  const digits = String(phone || '').replace(/\D/g, '')
-  return digits.slice(-3)
-}
-
 function checkinExportRow(guest) {
-  return {
-    桌號: guest.allocated_table || '未分桌',
-    姓名: guest.name || '',
-    與新人關係: guest.guest_category || '未分類',
-    'RSVP 大人': Number(guest.total_adults || 0),
-    'RSVP 小孩': Number(guest.total_children || 0),
-    實到大人: Number(guest.total_adults || 0),
-    實到小孩: Number(guest.total_children || 0),
-    現場簽到: '☐',
-    喜餅領取: '☐',
-    禮金: '',
-    備註: '',
-    電話後三碼: phoneLastThree(guest.phone),
-  }
+  return buildCheckinExportRow(guest)
 }
 
 function formatExportTimestamp(date = new Date()) {
@@ -1149,7 +1135,18 @@ onBeforeUnmount(() => {
       <div v-else class="checkin-list">
         <article v-for="guest in visibleGuests" :key="guest.id" class="checkin-row">
           <div>
-            <p class="guest-name">{{ guest.name }}</p>
+            <div class="checkin-guest-head">
+              <p class="guest-name">{{ guest.name }}</p>
+              <span
+                class="badge"
+                :class="guestCategoryBadgeClass(guest.guest_category)"
+              >
+                {{ guest.guest_category || '未分類' }}
+              </span>
+              <span class="badge badge-neutral">
+                末三碼 {{ phoneLastThreeDigits(guest.phone) || '---' }}
+              </span>
+            </div>
             <p class="guest-sub">
               {{ guest.allocated_table || '未分桌' }} · 大人 {{ guest.total_adults }} 位
               <template v-if="guest.total_children > 0"> · 小孩 {{ guest.total_children }} 位</template>
