@@ -2010,21 +2010,20 @@ textarea.field-control {
 }
 
 .rsvp-hero__image {
-  filter: saturate(0.98);
+  filter: brightness(1.08) saturate(1.04);
   height: 100%;
   inset: 0;
   object-fit: cover;
   object-position: center 44%;
-  opacity: 0.9;
+  opacity: 1;
   position: absolute;
   width: 100%;
 }
 
 .rsvp-hero__shade {
-  background:
-    linear-gradient(90deg, rgba(24, 22, 20, 0.54) 0%, rgba(24, 22, 20, 0.28) 42%, rgba(24, 22, 20, 0.06) 78%),
-    linear-gradient(180deg, rgba(11, 18, 22, 0.04) 0%, rgba(11, 18, 22, 0.02) 48%, rgba(11, 18, 22, 0.32) 100%);
+  background: linear-gradient(90deg, rgba(24, 22, 20, 0.44) 0%, rgba(24, 22, 20, 0.2) 54%, rgba(24, 22, 20, 0) 90%);
   inset: 0;
+  mask-image: linear-gradient(180deg, #000 0%, #000 36%, transparent 72%);
   position: absolute;
 }
 
@@ -2454,8 +2453,8 @@ textarea.field-control {
   }
 
   .rsvp-hero__shade {
-    background:
-      linear-gradient(180deg, rgba(16, 24, 28, 0.34) 0%, rgba(16, 24, 28, 0.14) 38%, rgba(16, 24, 28, 0.44) 100%);
+    background: linear-gradient(90deg, rgba(24, 22, 20, 0.38) 0%, rgba(24, 22, 20, 0.16) 76%, rgba(24, 22, 20, 0) 100%);
+    mask-image: linear-gradient(180deg, #000 0%, #000 34%, transparent 68%);
   }
 
   .rsvp-hero__content {
