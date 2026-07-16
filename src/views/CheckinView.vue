@@ -40,6 +40,14 @@ const tableOrder = computed(() =>
   new Map(tableSettings.value.map((setting, index) => [setting.table_name, index])),
 )
 
+const attendingGuestExportRows = computed(() =>
+  guests.value
+    .filter((guest) => guest.status === 'attend')
+    .slice()
+    .sort(compareGuestsForCheckinExport)
+    .map(checkinExportRow),
+)
+
 const visibleGuests = computed(() =>
   guests.value.filter((guest) =>
     attendingOnly.value ? guest.status === 'attend' : true,
@@ -221,6 +229,121 @@ function actualChildren(guest) {
 
 function hasAssignedTable(guest) {
   return Boolean(String(guest.allocated_table || '').trim())
+}
+
+function tableSortIndex(tableName) {
+  const normalizedTableName = String(tableName || '').trim()
+  if (!normalizedTableName) return Number.MAX_SAFE_INTEGER
+  return tableOrder.value.get(normalizedTableName) ?? Number.MAX_SAFE_INTEGER - 1
+}
+
+function compareGuestsForCheckinExport(a, b) {
+  const tableCompare = tableSortIndex(a.allocated_table) - tableSortIndex(b.allocated_table)
+  if (tableCompare !== 0) return tableCompare
+
+  const tableNameCompare = String(a.allocated_table || '未分桌')
+    .localeCompare(String(b.allocated_table || '未分桌'), 'zh-Hant', { numeric: true })
+  if (tableNameCompare !== 0) return tableNameCompare
+
+  const categoryCompare = String(a.guest_category || '')
+    .localeCompare(String(b.guest_category || ''), 'zh-Hant')
+  if (categoryCompare !== 0) return categoryCompare
+
+  return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hant')
+}
+
+function phoneLastThree(phone) {
+  const digits = String(phone || '').replace(/\D/g, '')
+  return digits.slice(-3)
+}
+
+function checkinExportRow(guest) {
+  return {
+    桌號: guest.allocated_table || '未分桌',
+    姓名: guest.name || '',
+    與新人關係: guest.guest_category || '未分類',
+    'RSVP 大人': Number(guest.total_adults || 0),
+    'RSVP 小孩': Number(guest.total_children || 0),
+    實到大人: Number(guest.total_adults || 0),
+    實到小孩: Number(guest.total_children || 0),
+    現場簽到: '☐',
+    喜餅領取: '☐',
+    禮金: '',
+    備註: '',
+    電話後三碼: phoneLastThree(guest.phone),
+  }
+}
+
+function formatExportTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, '0')
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+  ].join('-') + '-' + pad(date.getHours()) + pad(date.getMinutes())
+}
+
+async function exportCheckinWorkbook() {
+  const rows = attendingGuestExportRows.value
+  if (!rows.length) return
+
+  const ExcelJSModule = await import('exceljs')
+  const ExcelJS = ExcelJSModule.default || ExcelJSModule
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'Wedding System'
+  workbook.created = new Date()
+
+  const worksheet = workbook.addWorksheet('現場簽到', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  })
+  worksheet.columns = [
+    { header: '桌號', key: '桌號', width: 12 },
+    { header: '姓名', key: '姓名', width: 14 },
+    { header: '與新人關係', key: '與新人關係', width: 18 },
+    { header: 'RSVP 大人', key: 'RSVP 大人', width: 10 },
+    { header: 'RSVP 小孩', key: 'RSVP 小孩', width: 10 },
+    { header: '實到大人', key: '實到大人', width: 10 },
+    { header: '實到小孩', key: '實到小孩', width: 10 },
+    { header: '現場簽到', key: '現場簽到', width: 12 },
+    { header: '喜餅領取', key: '喜餅領取', width: 12 },
+    { header: '禮金', key: '禮金', width: 12 },
+    { header: '備註', key: '備註', width: 24 },
+    { header: '電話後三碼', key: '電話後三碼', width: 12 },
+  ]
+  worksheet.addRows(rows)
+  worksheet.autoFilter = { from: 'A1', to: 'L1' }
+
+  const headerRow = worksheet.getRow(1)
+  headerRow.font = { bold: true }
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center' }
+
+  for (let rowIndex = 2; rowIndex <= worksheet.rowCount; rowIndex += 1) {
+    for (const columnLetter of ['H', 'I']) {
+      const cell = worksheet.getCell(`${columnLetter}${rowIndex}`)
+      cell.dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['"☐,☑"'],
+      }
+      cell.alignment = { horizontal: 'center' }
+    }
+  }
+
+  const giftColumn = worksheet.getColumn('禮金')
+  giftColumn.numFmt = '#,##0'
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `婚禮現場簽到表-${formatExportTimestamp()}.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }
 
 function normalizeActualCount(value) {
@@ -622,6 +745,14 @@ onBeforeUnmount(() => {
         <p class="lead">婚禮當天可交給工作人員操作的桌號、簽到與禮金工作台。</p>
       </div>
       <div class="toolbar">
+        <button
+          class="btn btn-ghost"
+          type="button"
+          :disabled="isLoading || attendingGuestExportRows.length === 0"
+          @click="exportCheckinWorkbook"
+        >
+          匯出現場簽到 Excel
+        </button>
         <button class="btn btn-primary" type="button" @click="startCameraScan">
           掃描 QR
         </button>
