@@ -24,6 +24,7 @@ const isResolvingScan = ref(false)
 const isCameraScanning = ref(false)
 const scannerVideo = ref(null)
 const pendingGiftTimers = new Map()
+const pendingNotesTimers = new Map()
 const attendingOnly = ref(true)
 const selectedTable = ref(null)
 const tableSettings = ref([])
@@ -145,7 +146,7 @@ function normalizeGuest(guest) {
   }
 }
 
-function applyUpdatedGuest(updatedGuest) {
+function applyUpdatedGuest(updatedGuest, { syncActualDraft = true } = {}) {
   const updated = normalizeGuest(updatedGuest)
   const index = guests.value.findIndex((guest) => guest.id === updated.id)
   if (index >= 0) {
@@ -156,7 +157,9 @@ function applyUpdatedGuest(updatedGuest) {
   if (scannedGuest.value?.id === updated.id) {
     scannedGuest.value = updated
   }
-  syncActualCountDraft(updated)
+  if (syncActualDraft) {
+    syncActualCountDraft(updated)
+  }
   return updated
 }
 
@@ -188,9 +191,9 @@ async function updateGuestField(guestId, payload) {
   }
 }
 
-async function updateGuestCheckinField(guestId, payload) {
+async function updateGuestCheckinField(guestId, payload, options = {}) {
   try {
-    const updated = applyUpdatedGuest(await patchGuestCheckin(guestId, payload))
+    const updated = applyUpdatedGuest(await patchGuestCheckin(guestId, payload), options)
     scanStatusMessage.value = scanStatusMessage.value && updated.is_arrived
       ? `${scanStatusMessage.value}，已確認到場`
       : updated.is_arrived
@@ -440,10 +443,29 @@ function handleGiftInput(guest, value) {
   pendingGiftTimers.set(guest.id, timer)
 }
 
+function handleAdminNotesInput(guest, value) {
+  guest.admin_notes = value
+
+  if (pendingNotesTimers.has(guest.id)) {
+    clearTimeout(pendingNotesTimers.get(guest.id))
+  }
+
+  const timer = setTimeout(() => {
+    updateGuestField(guest.id, {
+      admin_notes: value.trim() || null,
+    })
+    pendingNotesTimers.delete(guest.id)
+  }, 500)
+
+  pendingNotesTimers.set(guest.id, timer)
+}
+
 function handleCakePickupToggle(guest) {
   if (guest.status !== 'attend') return
   updateGuestCheckinField(guest.id, {
     cake_status: guest.cake_status === 'pickup' ? 'pending_pickup' : 'pickup',
+  }, {
+    syncActualDraft: false,
   })
 }
 
@@ -577,6 +599,12 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  for (const timer of pendingGiftTimers.values()) {
+    clearTimeout(timer)
+  }
+  for (const timer of pendingNotesTimers.values()) {
+    clearTimeout(timer)
+  }
   stopCameraScan()
 })
 </script>
@@ -919,6 +947,32 @@ onBeforeUnmount(() => {
               </label>
               <p v-else class="shipping-value">不適用</p>
             </div>
+          </div>
+
+          <div class="scan-result-input-grid">
+            <label class="gift-field">
+              <span>禮金金額</span>
+              <input
+                class="field-control gift-input"
+                type="number"
+                min="0"
+                step="1"
+                aria-label="禮金金額"
+                :value="scannedGuest.gift_amount"
+                @input="handleGiftInput(scannedGuest, $event.target.value)"
+              />
+            </label>
+
+            <label class="notes-field">
+              <span>備註</span>
+              <textarea
+                class="field-control notes-input"
+                rows="2"
+                :value="scannedGuest.admin_notes || ''"
+                placeholder="現場備註"
+                @input="handleAdminNotesInput(scannedGuest, $event.target.value)"
+              />
+            </label>
           </div>
 
           <div class="toolbar scan-result-actions">

@@ -171,6 +171,24 @@
   justify-content: flex-end;
 }
 
+.scan-result-input-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(160px, 0.7fr) minmax(260px, 1.3fr);
+}
+
+.notes-field {
+  color: var(--muted);
+  display: grid;
+  font-size: var(--text-sm);
+  gap: 6px;
+}
+
+.notes-input {
+  min-height: 74px;
+  resize: vertical;
+}
+
 .scan-unassigned {
   color: #b42318;
   font-weight: 700;
@@ -195,6 +213,10 @@
 
   .scan-result-head {
     display: grid;
+  }
+
+  .scan-result-input-grid {
+    grid-template-columns: 1fr;
   }
 
   .qr-code-box {
