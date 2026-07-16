@@ -11,11 +11,13 @@ import {
   patchGuestCheckin,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
+import VenueFloorPlan from '../components/VenueFloorPlan.vue'
 import {
   buildCheckinExportRow,
   buildCancelArrivalPayload,
   phoneLastThreeDigits,
 } from '../utils/checkin'
+import { buildFloorTableRows } from '../utils/tablePlan'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,36 +117,15 @@ const mainTable = computed(() =>
 )
 
 const floorTableRows = computed(() => {
-  const tables = tableSummary.value.filter((table) => table.name !== mainTable.value?.name)
-  const rows = []
-  let cursor = 0
-  let rowIndex = 0
-
-  while (cursor < tables.length) {
-    const rowSize = rowIndex % 2 === 0 ? 2 : 4
-    const rowTables = tables.slice(cursor, cursor + rowSize)
-    const leftCount = rowSize === 2
-      ? Math.ceil(rowTables.length / 2)
-      : Math.min(rowTables.length, 2)
-
-    rows.push({
-      id: `table-row-${rowIndex}`,
-      variant: rowSize === 2 ? 'two' : 'four',
-      leftTables: rowTables.slice(0, leftCount),
-      rightTables: rowTables.slice(leftCount),
-    })
-    cursor += rowSize
-    rowIndex += 1
-  }
-
-  return rows
+  return buildFloorTableRows(tableSummary.value, mainTable.value?.name)
 })
 
-function chairStyle(index, total) {
-  const angle = -90 + (360 / total) * index
-  return {
-    transform: `rotate(${angle}deg) translate(var(--chair-radius)) rotate(${-angle}deg)`,
-  }
+function checkinChairClass(table, chair) {
+  return { 'is-arrived': chair <= table.arrivedAttendees }
+}
+
+function checkinTableMetric(table) {
+  return `${table.arrivedAttendees} / ${table.capacity}`
 }
 
 function normalizeGiftAmount(value) {
@@ -768,99 +749,13 @@ onBeforeUnmount(() => {
         <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
       </div>
 
-      <div class="venue-floor-plan">
-        <div class="venue-floor-plan__scale">
-          <div class="venue-stage">
-            <span>舞台</span>
-          </div>
-
-          <div v-if="mainTable" class="venue-main-table">
-            <button
-              class="round-table round-table--main"
-              type="button"
-              @click="openTableDialog(mainTable)"
-            >
-              <span
-                v-for="chair in mainTable.capacity"
-                :key="`main-chair-${chair}`"
-                class="round-table__chair"
-                :class="{ 'is-arrived': chair <= mainTable.arrivedAttendees }"
-                :style="chairStyle(chair - 1, mainTable.capacity)"
-                aria-hidden="true"
-              ></span>
-              <span class="round-table__center">
-                <strong>{{ mainTable.name }}</strong>
-                <span>{{ mainTable.arrivedAttendees }} / {{ mainTable.capacity }}</span>
-              </span>
-            </button>
-          </div>
-
-          <div class="venue-table-rows">
-            <div
-              v-for="row in floorTableRows"
-              :key="row.id"
-              class="venue-table-row"
-              :class="`venue-table-row--${row.variant}`"
-            >
-              <div class="venue-table-side venue-table-side--left">
-                <button
-                  v-for="table in row.leftTables"
-                  :key="table.name"
-                  class="round-table"
-                  type="button"
-                  @click="openTableDialog(table)"
-                >
-                  <span
-                    v-for="chair in table.capacity"
-                    :key="`${table.name}-chair-${chair}`"
-                    class="round-table__chair"
-                    :class="{ 'is-arrived': chair <= table.arrivedAttendees }"
-                    :style="chairStyle(chair - 1, table.capacity)"
-                    aria-hidden="true"
-                  ></span>
-                  <span class="round-table__center">
-                    <strong>{{ table.name }}</strong>
-                    <span>{{ table.arrivedAttendees }} / {{ table.capacity }}</span>
-                  </span>
-                </button>
-              </div>
-
-              <div class="venue-table-side venue-table-side--right">
-                <button
-                  v-for="table in row.rightTables"
-                  :key="table.name"
-                  class="round-table"
-                  type="button"
-                  @click="openTableDialog(table)"
-                >
-                  <span
-                    v-for="chair in table.capacity"
-                    :key="`${table.name}-chair-${chair}`"
-                    class="round-table__chair"
-                    :class="{ 'is-arrived': chair <= table.arrivedAttendees }"
-                    :style="chairStyle(chair - 1, table.capacity)"
-                    aria-hidden="true"
-                  ></span>
-                  <span class="round-table__center">
-                    <strong>{{ table.name }}</strong>
-                    <span>{{ table.arrivedAttendees }} / {{ table.capacity }}</span>
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="venue-aisle" aria-hidden="true">
-            <span></span>
-            <strong>走 道</strong>
-            <span></span>
-          </div>
-
-          <div class="venue-entry">
-            入口 / 接待
-          </div>
-        </div>
-      </div>
+      <VenueFloorPlan
+        :main-table="mainTable"
+        :floor-table-rows="floorTableRows"
+        :get-chair-class="checkinChairClass"
+        :get-table-metric="checkinTableMetric"
+        @select-table="openTableDialog"
+      />
 
       <p v-if="!mainTable" class="message">
         尚未建立桌次設定

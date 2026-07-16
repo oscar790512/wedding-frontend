@@ -1403,6 +1403,11 @@ textarea.field-control {
   transform: translateY(-2px);
 }
 
+.round-table.is-over-capacity {
+  border-color: color-mix(in oklab, var(--danger), black 8%);
+  box-shadow: 0 18px 42px color-mix(in oklab, var(--danger), transparent 76%);
+}
+
 .round-table--main {
   --table-size: var(--venue-main-table-size);
   --chair-size: var(--venue-main-chair-size);
@@ -1424,7 +1429,8 @@ textarea.field-control {
   width: var(--chair-size);
 }
 
-.round-table__chair.is-arrived {
+.round-table__chair.is-arrived,
+.round-table__chair.is-occupied {
   background: var(--success);
   border-color: color-mix(in oklab, var(--success), black 16%);
 }
@@ -1713,6 +1719,24 @@ textarea.field-control {
   display: grid;
   font-size: var(--text-sm);
   gap: 8px;
+}
+
+.table-dialog-controls {
+  align-items: end;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: minmax(180px, 1fr) 150px auto;
+}
+
+.table-dialog-controls label {
+  color: var(--muted);
+  display: grid;
+  font-size: var(--text-sm);
+  gap: 8px;
+}
+
+.table-plan-venue-panel {
+  min-width: 0;
 }
 
 .table-name-editor {
@@ -2266,6 +2290,10 @@ textarea.field-control {
   .grid-4,
   .ops-grid,
   .table-planner {
+    grid-template-columns: 1fr;
+  }
+
+  .table-dialog-controls {
     grid-template-columns: 1fr;
   }
 

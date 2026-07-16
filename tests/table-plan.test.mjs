@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  buildFloorTableRows,
   canAssignGuestToTable,
+  chairStyle,
   guestAttendeeCount,
   remainingSeats,
   tableCapacityErrorMessage,
@@ -69,6 +71,42 @@ describe('table planning helpers', () => {
     }
 
     assert.equal(canAssignGuestToTable(guest, table), true)
+  })
+
+  it('builds floor table rows with the main table excluded from automatic rows', () => {
+    const rows = buildFloorTableRows(
+      [
+        { name: '主桌' },
+        { name: '第 1 桌' },
+        { name: '第 2 桌' },
+        { name: '第 3 桌' },
+        { name: '第 4 桌' },
+        { name: '第 5 桌' },
+        { name: '第 6 桌' },
+      ],
+      '主桌',
+    )
+
+    assert.deepEqual(rows, [
+      {
+        id: 'table-row-0',
+        variant: 'two',
+        leftTables: [{ name: '第 1 桌' }],
+        rightTables: [{ name: '第 2 桌' }],
+      },
+      {
+        id: 'table-row-1',
+        variant: 'four',
+        leftTables: [{ name: '第 3 桌' }, { name: '第 4 桌' }],
+        rightTables: [{ name: '第 5 桌' }, { name: '第 6 桌' }],
+      },
+    ])
+  })
+
+  it('positions chairs evenly around a round table', () => {
+    assert.deepEqual(chairStyle(1, 4), {
+      transform: 'rotate(0deg) translate(var(--chair-radius)) rotate(0deg)',
+    })
   })
 })
 

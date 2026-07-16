@@ -10,7 +10,9 @@ import {
   saveTableSetting,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
+import VenueFloorPlan from '../components/VenueFloorPlan.vue'
 import {
+  buildFloorTableRows,
   canAssignGuestToTable,
   guestAttendeeCount,
   tableAttendeeCount,
@@ -25,6 +27,7 @@ const newTableCount = ref(1)
 const defaultCapacity = ref(12)
 const selectedGuestByTable = ref({})
 const tableNameDrafts = ref({})
+const selectedTableName = ref('')
 const tableSettingsByName = computed(() =>
   new Map(tableSettings.value.map((setting) => [setting.table_name, setting])),
 )
@@ -61,6 +64,18 @@ const tables = computed(() =>
 
 const totalCapacity = computed(() =>
   tables.value.reduce((sum, table) => sum + Number(table.capacity || 0), 0),
+)
+
+const mainTable = computed(() =>
+  tables.value.find((table) => table.name === '主桌') || tables.value[0] || null,
+)
+
+const floorTableRows = computed(() =>
+  buildFloorTableRows(tables.value, mainTable.value?.name),
+)
+
+const selectedTable = computed(() =>
+  tables.value.find((table) => table.name === selectedTableName.value) || null,
 )
 
 const assignedGuestCount = computed(() =>
@@ -118,6 +133,9 @@ async function renameTable(oldTableName, value) {
     tableNameDrafts.value = {
       ...drafts,
       [newTableName]: newTableName,
+    }
+    if (selectedTableName.value === oldTableName) {
+      selectedTableName.value = newTableName
     }
     errorMessage.value = ''
   } catch (error) {
@@ -239,6 +257,11 @@ async function addSelectedGuest(tableName) {
 }
 
 async function removeTable(tableName) {
+  if (isLockedTableName(tableName)) {
+    errorMessage.value = '主桌不可刪除'
+    return
+  }
+
   try {
     const guestsInTable = guests.value.filter(
       (guest) => guest.allocated_table === tableName,
@@ -252,6 +275,9 @@ async function removeTable(tableName) {
     tableSettings.value = tableSettings.value.filter(
       (setting) => setting.table_name !== tableName,
     )
+    if (selectedTableName.value === tableName) {
+      closeTableDialog()
+    }
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
@@ -260,6 +286,26 @@ async function removeTable(tableName) {
 
 function guestSizeLabel(guest) {
   return `${guestAttendeeCount(guest)} 位`
+}
+
+function openTableDialog(table) {
+  selectedTableName.value = table.name
+}
+
+function closeTableDialog() {
+  selectedTableName.value = ''
+}
+
+function planningChairClass(table, chair) {
+  return { 'is-occupied': chair <= Math.min(table.attendeeCount, table.capacity) }
+}
+
+function planningTableMetric(table) {
+  return `${table.attendeeCount} / ${table.capacity}`
+}
+
+function planningTableClass(table) {
+  return { 'is-over-capacity': table.isOverCapacity }
 }
 
 onMounted(loadPlanningData)
@@ -385,105 +431,146 @@ onMounted(loadPlanningData)
         </p>
       </aside>
 
-      <div class="table-plan-board">
-        <article v-for="table in tables" :key="table.name" class="table-plan-card">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">{{ table.attendeeCount }} / {{ table.capacity }} 位</p>
-              <label class="table-name-editor">
-                桌次名稱
-                <input
-                  class="field-control"
-                  :value="tableNameDrafts[table.name] ?? table.name"
-                  :disabled="isLockedTableName(table.name)"
-                  @input="handleTableNameInput(table.name, $event.target.value)"
-                  @blur="renameTable(table.name, $event.target.value)"
-                  @keydown.enter.prevent="renameTable(table.name, $event.target.value)"
-                />
-              </label>
-            </div>
-            <button
-              class="btn btn-ghost"
-              type="button"
-              @click="removeTable(table.name)"
-            >
-              刪除桌次
-            </button>
+      <section class="panel table-plan-venue-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Floor Plan</p>
+            <h2>座位圖</h2>
           </div>
+          <span class="badge badge-warn">{{ tables.length }} 個桌次</span>
+        </div>
 
-          <div class="capacity" :class="{ 'capacity--over': table.isOverCapacity }">
-            <span :style="{ width: `${table.percent}%` }"></span>
-          </div>
+        <VenueFloorPlan
+          :main-table="mainTable"
+          :floor-table-rows="floorTableRows"
+          :get-chair-class="planningChairClass"
+          :get-table-metric="planningTableMetric"
+          :get-table-class="planningTableClass"
+          @select-table="openTableDialog"
+        />
 
-          <div class="table-card-controls">
-            <label>
-              每桌人數
-              <input
-                class="field-control"
-                type="number"
-                min="1"
-                :value="table.capacity"
-                @change="updateTableCapacity(table.name, $event.target.value)"
-              />
-            </label>
-            <label>
-              加入賓客
-              <select
-                v-model="selectedGuestByTable[table.name]"
-                class="field-control"
-                @change="addSelectedGuest(table.name)"
-              >
-                <option value="">選擇未分桌賓客</option>
-                <option
-                  v-for="guest in unassignedGuests"
-                  :key="guest.id"
-                  :value="guest.id"
-                  :disabled="!canAssignGuestToTable(guest, table)"
-                >
-                  {{ guest.name }}（{{ guestSizeLabel(guest) }}）
-                </option>
-              </select>
-            </label>
-          </div>
+        <p v-if="!mainTable" class="message">
+          尚未建立桌次設定
+        </p>
+      </section>
+    </section>
 
-          <div class="seat-list">
-            <article
-              v-for="guest in table.guests"
-              :key="guest.id"
-              class="seat-guest"
-            >
-              <div>
-                <strong>{{ guest.name }}</strong>
-                <p class="guest-sub">
-                  {{ guestSizeLabel(guest) }} · 大人 {{ guest.total_adults }}
-                  <template v-if="guest.total_children > 0">
-                    · 小孩 {{ guest.total_children }}
-                  </template>
-                </p>
-              </div>
-              <select
-                class="field-control"
-                :value="guest.allocated_table || ''"
-                @change="assignGuest(guest.id, $event.target.value)"
-              >
-                <option value="">移回未分桌</option>
-                <option
-                  v-for="optionTable in tables"
-                  :key="optionTable.name"
-                  :value="optionTable.name"
-                  :disabled="!canAssignGuestToTable(guest, optionTable)"
-                >
-                  {{ optionTable.name }}
-                </option>
-              </select>
-            </article>
-
-            <p v-if="table.guests.length === 0" class="message">
-              這桌尚未安排賓客
+    <div
+      v-if="selectedTable"
+      class="dialog-backdrop"
+      role="presentation"
+      @click.self="closeTableDialog"
+    >
+      <section class="dialog-card" role="dialog" aria-modal="true">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Table Assignment</p>
+            <h2>{{ selectedTable.name }}</h2>
+            <p class="lead">
+              已安排 {{ selectedTable.attendeeCount }} / {{ selectedTable.capacity }} 位。
             </p>
           </div>
-        </article>
-      </div>
-    </section>
+          <button class="btn btn-ghost" type="button" @click="closeTableDialog">
+            關閉
+          </button>
+        </div>
+
+        <div class="capacity" :class="{ 'capacity--over': selectedTable.isOverCapacity }">
+          <span :style="{ width: `${selectedTable.percent}%` }"></span>
+        </div>
+
+        <div class="table-dialog-controls">
+          <label class="table-name-editor">
+            桌次名稱
+            <input
+              class="field-control"
+              :value="tableNameDrafts[selectedTable.name] ?? selectedTable.name"
+              :disabled="isLockedTableName(selectedTable.name)"
+              @input="handleTableNameInput(selectedTable.name, $event.target.value)"
+              @blur="renameTable(selectedTable.name, $event.target.value)"
+              @keydown.enter.prevent="renameTable(selectedTable.name, $event.target.value)"
+            />
+          </label>
+
+          <label>
+            每桌人數
+            <input
+              class="field-control"
+              type="number"
+              min="1"
+              :value="selectedTable.capacity"
+              @change="updateTableCapacity(selectedTable.name, $event.target.value)"
+            />
+          </label>
+
+          <button
+            class="btn btn-ghost"
+            type="button"
+            :disabled="isLockedTableName(selectedTable.name)"
+            @click="removeTable(selectedTable.name)"
+          >
+            刪除桌次
+          </button>
+        </div>
+
+        <div class="table-card-controls">
+          <label>
+            加入未分桌賓客
+            <select
+              v-model="selectedGuestByTable[selectedTable.name]"
+              class="field-control"
+              @change="addSelectedGuest(selectedTable.name)"
+            >
+              <option value="">選擇未分桌賓客</option>
+              <option
+                v-for="guest in unassignedGuests"
+                :key="guest.id"
+                :value="guest.id"
+                :disabled="!canAssignGuestToTable(guest, selectedTable)"
+              >
+                {{ guest.name }}（{{ guestSizeLabel(guest) }}）
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="seat-list">
+          <article
+            v-for="guest in selectedTable.guests"
+            :key="guest.id"
+            class="seat-guest"
+          >
+            <div>
+              <strong>{{ guest.name }}</strong>
+              <p class="guest-sub">
+                {{ guestSizeLabel(guest) }} · 大人 {{ guest.total_adults }}
+                <template v-if="guest.total_children > 0">
+                  · 小孩 {{ guest.total_children }}
+                </template>
+              </p>
+            </div>
+            <select
+              class="field-control"
+              :value="guest.allocated_table || ''"
+              @change="assignGuest(guest.id, $event.target.value)"
+            >
+              <option value="">移回未分桌</option>
+              <option
+                v-for="optionTable in tables"
+                :key="optionTable.name"
+                :value="optionTable.name"
+                :disabled="!canAssignGuestToTable(guest, optionTable)"
+              >
+                {{ optionTable.name }}
+              </option>
+            </select>
+          </article>
+
+          <p v-if="selectedTable.guests.length === 0" class="message">
+            這桌尚未安排賓客
+          </p>
+        </div>
+      </section>
+    </div>
   </AdminLayout>
 </template>
