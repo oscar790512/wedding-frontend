@@ -10,6 +10,12 @@ import {
   saveTableSetting,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
+import {
+  canAssignGuestToTable,
+  guestAttendeeCount,
+  tableAttendeeCount,
+  tableCapacityErrorMessage,
+} from '../utils/tablePlan'
 
 const guests = ref([])
 const tableSettings = ref([])
@@ -39,11 +45,7 @@ const tables = computed(() =>
     const seatedGuests = attendingGuests.value.filter(
       (guest) => guest.allocated_table === tableName,
     )
-    const attendeeCount = seatedGuests.reduce(
-      (sum, guest) =>
-        sum + Number(guest.total_adults || 0) + Number(guest.total_children || 0),
-      0,
-    )
+    const attendeeCount = tableAttendeeCount(seatedGuests)
     const capacity = Number(setting?.capacity || defaultCapacity.value || 12)
 
     return {
@@ -205,6 +207,13 @@ async function updateTableCapacity(tableName, value) {
 
 async function assignGuest(guestId, tableName) {
   if (!guestId) return
+  const guest = guests.value.find((item) => item.id === guestId)
+  const targetTable = tables.value.find((table) => table.name === tableName)
+
+  if (tableName && guest && targetTable && !canAssignGuestToTable(guest, targetTable)) {
+    errorMessage.value = tableCapacityErrorMessage(guest, targetTable)
+    return
+  }
 
   try {
     const updated = await patchGuest(guestId, {
@@ -250,8 +259,7 @@ async function removeTable(tableName) {
 }
 
 function guestSizeLabel(guest) {
-  const total = Number(guest.total_adults || 0) + Number(guest.total_children || 0)
-  return `${total} 位`
+  return `${guestAttendeeCount(guest)} 位`
 }
 
 onMounted(loadPlanningData)
@@ -365,6 +373,7 @@ onMounted(loadPlanningData)
               v-for="table in tables"
               :key="table.name"
               :value="table.name"
+              :disabled="!canAssignGuestToTable(guest, table)"
             >
               {{ table.name }}
             </option>
@@ -429,6 +438,7 @@ onMounted(loadPlanningData)
                   v-for="guest in unassignedGuests"
                   :key="guest.id"
                   :value="guest.id"
+                  :disabled="!canAssignGuestToTable(guest, table)"
                 >
                   {{ guest.name }}（{{ guestSizeLabel(guest) }}）
                 </option>
@@ -461,6 +471,7 @@ onMounted(loadPlanningData)
                   v-for="optionTable in tables"
                   :key="optionTable.name"
                   :value="optionTable.name"
+                  :disabled="!canAssignGuestToTable(guest, optionTable)"
                 >
                   {{ optionTable.name }}
                 </option>
