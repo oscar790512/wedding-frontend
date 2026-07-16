@@ -872,7 +872,7 @@ onBeforeUnmount(() => {
             <div>
               <p class="eyebrow">Scan Result</p>
               <h2>{{ scannedGuest.name }}</h2>
-              <div class="scan-result-badges">
+              <div class="scan-result-tags">
                 <span
                   class="badge"
                   :class="guestCategoryBadgeClass(scannedGuest.guest_category)"
@@ -885,15 +885,13 @@ onBeforeUnmount(() => {
                 >
                   {{ scannedGuest.allocated_table || '未分桌' }}
                 </span>
+                <span class="badge" :class="`badge--${scannedGuest.status}`">
+                  {{ statusLabel(scannedGuest.status) }}
+                </span>
+                <span class="badge" :class="checkinBadgeClass(scannedGuest)">
+                  {{ checkinBadgeLabel(scannedGuest) }}
+                </span>
               </div>
-            </div>
-            <div class="scan-result-status">
-              <span class="badge" :class="`badge--${scannedGuest.status}`">
-                {{ statusLabel(scannedGuest.status) }}
-              </span>
-              <span class="badge" :class="checkinBadgeClass(scannedGuest)">
-                {{ checkinBadgeLabel(scannedGuest) }}
-              </span>
             </div>
           </div>
 
@@ -965,13 +963,13 @@ onBeforeUnmount(() => {
 
             <label class="notes-field">
               <span>備註</span>
-              <textarea
+              <input
                 class="field-control notes-input"
-                rows="2"
+                type="text"
                 :value="scannedGuest.admin_notes || ''"
                 placeholder="現場備註"
                 @input="handleAdminNotesInput(scannedGuest, $event.target.value)"
-              />
+              >
             </label>
           </div>
 

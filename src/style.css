@@ -134,7 +134,7 @@
 
 .scan-result-dialog {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-3);
   max-width: 760px;
 }
 
@@ -147,20 +147,26 @@
 
 .scan-result-head h2 {
   font-family: var(--font-display);
-  font-size: clamp(32px, 5vw, 56px);
+  font-size: clamp(30px, 4vw, 48px);
   line-height: 1;
-  margin: 4px 0 12px;
+  margin: 4px 0 10px;
 }
 
-.scan-result-badges,
-.scan-result-status {
+.scan-result-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.scan-result-status {
-  justify-content: flex-end;
+.scan-result-tags {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.scan-result-tags .badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .scan-result-status-note {
@@ -185,8 +191,7 @@
 }
 
 .notes-input {
-  min-height: 74px;
-  resize: vertical;
+  min-height: 48px;
 }
 
 .scan-unassigned {
@@ -206,8 +211,7 @@
     grid-template-columns: 1fr;
   }
 
-  .scan-result-head,
-  .scan-result-status {
+  .scan-result-head {
     justify-content: flex-start;
   }
 
