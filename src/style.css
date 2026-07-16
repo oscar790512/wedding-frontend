@@ -2219,6 +2219,14 @@ textarea.field-control {
     padding: 0 var(--container-gutter-tablet);
   }
 
+  .rsvp-hero__content {
+    padding-top: clamp(132px, 14svh, 172px);
+  }
+
+  .rsvp-hero h1 {
+    font-size: clamp(56px, 10vw, 82px);
+  }
+
   .grid-2,
   .grid-3,
   .grid-4,
