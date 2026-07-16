@@ -1429,10 +1429,14 @@ textarea.field-control {
   width: var(--chair-size);
 }
 
-.round-table__chair.is-arrived,
-.round-table__chair.is-occupied {
+.round-table__chair.is-arrived {
   background: var(--success);
   border-color: color-mix(in oklab, var(--success), black 16%);
+}
+
+.round-table__chair.is-occupied {
+  background: #f0b53f;
+  border-color: color-mix(in oklab, #f0b53f, black 18%);
 }
 
 .round-table__center {
@@ -1686,12 +1690,25 @@ textarea.field-control {
   align-items: start;
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: minmax(280px, 0.34fr) minmax(0, 0.66fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .unassigned-panel {
-  position: sticky;
-  top: 92px;
+  min-width: 0;
+}
+
+.unassigned-list {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.unassigned-list .seat-guest {
+  align-items: center;
+  min-width: 0;
 }
 
 .table-plan-board {

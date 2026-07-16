@@ -391,46 +391,6 @@ onMounted(loadPlanningData)
     <p v-if="isLoading" class="message">載入中...</p>
 
     <section v-else class="table-planner">
-      <aside class="panel unassigned-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Unassigned</p>
-            <h2>未分桌賓客</h2>
-          </div>
-          <span class="badge badge-warn">{{ unassignedGuests.length }} 組</span>
-        </div>
-
-        <article
-          v-for="guest in unassignedGuests"
-          :key="guest.id"
-          class="seat-guest"
-        >
-          <div>
-            <strong>{{ guest.name }}</strong>
-            <p class="guest-sub">{{ guestSizeLabel(guest) }} · {{ guest.phone }}</p>
-          </div>
-          <select
-            class="field-control"
-            :value="guest.allocated_table || ''"
-            @change="assignGuest(guest.id, $event.target.value)"
-          >
-            <option value="">未分桌</option>
-            <option
-              v-for="table in tables"
-              :key="table.name"
-              :value="table.name"
-              :disabled="!canAssignGuestToTable(guest, table)"
-            >
-              {{ table.name }}
-            </option>
-          </select>
-        </article>
-
-        <p v-if="unassignedGuests.length === 0" class="message">
-          所有出席賓客都已安排桌次
-        </p>
-      </aside>
-
       <section class="panel table-plan-venue-panel">
         <div class="section-head">
           <div>
@@ -453,6 +413,48 @@ onMounted(loadPlanningData)
           尚未建立桌次設定
         </p>
       </section>
+
+      <aside class="panel unassigned-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Unassigned</p>
+            <h2>未分桌賓客</h2>
+          </div>
+          <span class="badge badge-warn">{{ unassignedGuests.length }} 組</span>
+        </div>
+
+        <div class="unassigned-list">
+          <article
+            v-for="guest in unassignedGuests"
+            :key="guest.id"
+            class="seat-guest"
+          >
+            <div>
+              <strong>{{ guest.name }}</strong>
+              <p class="guest-sub">{{ guestSizeLabel(guest) }} · {{ guest.phone }}</p>
+            </div>
+            <select
+              class="field-control"
+              :value="guest.allocated_table || ''"
+              @change="assignGuest(guest.id, $event.target.value)"
+            >
+              <option value="">未分桌</option>
+              <option
+                v-for="table in tables"
+                :key="table.name"
+                :value="table.name"
+                :disabled="!canAssignGuestToTable(guest, table)"
+              >
+                {{ table.name }}
+              </option>
+            </select>
+          </article>
+        </div>
+
+        <p v-if="unassignedGuests.length === 0" class="message">
+          所有出席賓客都已安排桌次
+        </p>
+      </aside>
     </section>
 
     <div
