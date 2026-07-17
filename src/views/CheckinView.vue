@@ -32,10 +32,14 @@ const isCameraScanning = ref(false)
 const scannerVideo = ref(null)
 const pendingGiftTimers = new Map()
 const pendingNotesTimers = new Map()
+const giftInputVersions = new Map()
+const giftStatusClearTimers = new Map()
 const attendingOnly = ref(true)
 const selectedTable = ref(null)
 const tableSettings = ref([])
 const actualCountDrafts = ref({})
+const giftDrafts = ref({})
+const giftSaveStates = ref({})
 const activeTab = ref('checkin')
 const scannedGuest = ref(null)
 let scannerStream = null
@@ -131,6 +135,67 @@ function checkinTableMetric(table) {
 function normalizeGiftAmount(value) {
   if (value === '' || value === null || value === undefined) return 0
   return Math.max(Math.trunc(Number(value) || 0), 0)
+}
+
+function giftInputValue(guest) {
+  if (!guest) return ''
+  return Object.prototype.hasOwnProperty.call(giftDrafts.value, guest.id)
+    ? giftDrafts.value[guest.id]
+    : guest.gift_amount
+}
+
+function giftSaveState(guest) {
+  return guest ? giftSaveStates.value[guest.id] || '' : ''
+}
+
+function giftSaveLabel(guest) {
+  const state = giftSaveState(guest)
+  if (state === 'pending') return '待儲存'
+  if (state === 'saving') return '儲存中'
+  if (state === 'saved') return '已儲存'
+  if (state === 'error') return '儲存失敗'
+  return ''
+}
+
+function setGiftDraft(guestId, value) {
+  giftDrafts.value = {
+    ...giftDrafts.value,
+    [guestId]: value,
+  }
+}
+
+function clearGiftDraft(guestId) {
+  if (!Object.prototype.hasOwnProperty.call(giftDrafts.value, guestId)) return
+  const { [guestId]: _removed, ...nextDrafts } = giftDrafts.value
+  giftDrafts.value = nextDrafts
+}
+
+function setGiftSaveState(guestId, state) {
+  giftSaveStates.value = {
+    ...giftSaveStates.value,
+    [guestId]: state,
+  }
+}
+
+function clearGiftSaveState(guestId) {
+  if (!Object.prototype.hasOwnProperty.call(giftSaveStates.value, guestId)) return
+  const { [guestId]: _removed, ...nextStates } = giftSaveStates.value
+  giftSaveStates.value = nextStates
+}
+
+function scheduleGiftStateClear(guestId, state) {
+  if (giftStatusClearTimers.has(guestId)) {
+    clearTimeout(giftStatusClearTimers.get(guestId))
+  }
+
+  const timer = setTimeout(() => {
+    if (giftSaveStates.value[guestId] === state) {
+      clearGiftSaveState(guestId)
+    }
+    giftStatusClearTimers.delete(guestId)
+  }, 1500)
+
+  giftStatusClearTimers.set(guestId, timer)
 }
 
 function normalizeGuest(guest) {
@@ -512,19 +577,54 @@ function handleArrivedToggle(guest) {
   })
 }
 
+async function saveGiftAmount(guest, value, version) {
+  if (pendingGiftTimers.has(guest.id)) {
+    clearTimeout(pendingGiftTimers.get(guest.id))
+    pendingGiftTimers.delete(guest.id)
+  }
+
+  setGiftSaveState(guest.id, 'saving')
+
+  try {
+    const payloadValue = value === '' ? 0 : normalizeGiftAmount(value)
+    const updated = await patchGuest(guest.id, {
+      gift_amount: payloadValue,
+    })
+
+    if (giftInputVersions.get(guest.id) !== version) return
+
+    applyUpdatedGuest(updated)
+    clearGiftDraft(guest.id)
+    setGiftSaveState(guest.id, 'saved')
+    scheduleGiftStateClear(guest.id, 'saved')
+    errorMessage.value = ''
+  } catch (error) {
+    if (giftInputVersions.get(guest.id) !== version) return
+    setGiftSaveState(guest.id, 'error')
+    errorMessage.value = error.message
+  }
+}
+
+function flushGiftInput(guest) {
+  if (!guest || !Object.prototype.hasOwnProperty.call(giftDrafts.value, guest.id)) return
+  const value = giftDrafts.value[guest.id]
+  const version = giftInputVersions.get(guest.id) || 0
+  saveGiftAmount(guest, value, version)
+}
+
 function handleGiftInput(guest, value) {
   const normalizedValue = value === '' ? '' : normalizeGiftAmount(value)
-  guest.gift_amount = normalizedValue
+  const version = (giftInputVersions.get(guest.id) || 0) + 1
+  giftInputVersions.set(guest.id, version)
+  setGiftDraft(guest.id, normalizedValue)
+  setGiftSaveState(guest.id, 'pending')
 
   if (pendingGiftTimers.has(guest.id)) {
     clearTimeout(pendingGiftTimers.get(guest.id))
   }
 
   const timer = setTimeout(() => {
-    updateGuestField(guest.id, {
-      gift_amount: normalizedValue === '' ? 0 : normalizedValue,
-    })
-    pendingGiftTimers.delete(guest.id)
+    saveGiftAmount(guest, normalizedValue, version)
   }, 500)
 
   pendingGiftTimers.set(guest.id, timer)
@@ -682,10 +782,20 @@ watch(
 )
 
 onBeforeUnmount(() => {
-  for (const timer of pendingGiftTimers.values()) {
+  for (const [guestId, timer] of pendingGiftTimers.entries()) {
     clearTimeout(timer)
+    if (Object.prototype.hasOwnProperty.call(giftDrafts.value, guestId)) {
+      saveGiftAmount(
+        { id: guestId },
+        giftDrafts.value[guestId],
+        giftInputVersions.get(guestId) || 0,
+      )
+    }
   }
   for (const timer of pendingNotesTimers.values()) {
+    clearTimeout(timer)
+  }
+  for (const timer of giftStatusClearTimers.values()) {
     clearTimeout(timer)
   }
   stopCameraScan()
@@ -954,15 +1064,26 @@ onBeforeUnmount(() => {
 
           <div class="scan-result-input-grid">
             <label class="gift-field">
-              <span>禮金金額</span>
+              <span class="gift-field-head">
+                <span>禮金金額</span>
+                <span
+                  v-if="giftSaveLabel(scannedGuest)"
+                  class="gift-save-state"
+                  :class="`gift-save-state--${giftSaveState(scannedGuest)}`"
+                >
+                  {{ giftSaveLabel(scannedGuest) }}
+                </span>
+              </span>
               <input
                 class="field-control gift-input"
                 type="number"
                 min="0"
                 step="1"
                 aria-label="禮金金額"
-                :value="scannedGuest.gift_amount"
+                :value="giftInputValue(scannedGuest)"
                 @input="handleGiftInput(scannedGuest, $event.target.value)"
+                @blur="flushGiftInput(scannedGuest)"
+                @keydown.enter.prevent="flushGiftInput(scannedGuest)"
               />
             </label>
 
@@ -1103,15 +1224,26 @@ onBeforeUnmount(() => {
           </div>
 
           <label class="gift-field">
-            <span>禮金金額</span>
+            <span class="gift-field-head">
+              <span>禮金金額</span>
+              <span
+                v-if="giftSaveLabel(guest)"
+                class="gift-save-state"
+                :class="`gift-save-state--${giftSaveState(guest)}`"
+              >
+                {{ giftSaveLabel(guest) }}
+              </span>
+            </span>
             <input
               class="field-control gift-input"
               type="number"
               min="0"
               step="1"
               aria-label="禮金金額"
-              :value="guest.gift_amount"
+              :value="giftInputValue(guest)"
               @input="handleGiftInput(guest, $event.target.value)"
+              @blur="flushGiftInput(guest)"
+              @keydown.enter.prevent="flushGiftInput(guest)"
             />
           </label>
 

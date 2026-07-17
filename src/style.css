@@ -1847,6 +1847,28 @@ textarea.field-control {
   text-align: right;
 }
 
+.gift-field-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.gift-save-state {
+  color: var(--muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gift-save-state--saved {
+  color: color-mix(in oklab, var(--success), black 18%);
+}
+
+.gift-save-state--error {
+  color: var(--danger);
+}
+
 .cake-pickup-field {
   justify-self: end;
 }
