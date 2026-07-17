@@ -7,7 +7,6 @@ import {
   fetchGuestByCheckinToken,
   fetchGuests,
   fetchTableSettings,
-  patchGuest,
   patchGuestCheckin,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
@@ -29,6 +28,7 @@ const scanErrorMessage = ref('')
 const scanStatusMessage = ref('')
 const isResolvingScan = ref(false)
 const isCameraScanning = ref(false)
+const isScanDialogOpen = ref(false)
 const scannerVideo = ref(null)
 const pendingGiftTimers = new Map()
 const pendingNotesTimers = new Map()
@@ -241,23 +241,17 @@ async function loadGuests() {
   }
 }
 
-async function updateGuestField(guestId, payload) {
-  try {
-    applyUpdatedGuest(await patchGuest(guestId, payload))
-    errorMessage.value = ''
-  } catch (error) {
-    errorMessage.value = error.message
-  }
-}
-
 async function updateGuestCheckinField(guestId, payload, options = {}) {
   try {
-    const updated = applyUpdatedGuest(await patchGuestCheckin(guestId, payload), options)
-    scanStatusMessage.value = scanStatusMessage.value && updated.is_arrived
-      ? `${scanStatusMessage.value}，已確認到場`
-      : updated.is_arrived
-        ? '已確認到場'
-        : '已取消到場'
+    const { updateScanStatus = true, ...applyOptions } = options
+    const updated = applyUpdatedGuest(await patchGuestCheckin(guestId, payload), applyOptions)
+    if (updateScanStatus) {
+      scanStatusMessage.value = scanStatusMessage.value && updated.is_arrived
+        ? `${scanStatusMessage.value}，已確認到場`
+        : updated.is_arrived
+          ? '已確認到場'
+          : '已取消到場'
+    }
     errorMessage.value = ''
     scanErrorMessage.value = ''
   } catch (error) {
@@ -428,6 +422,25 @@ function setActiveTab(tab) {
   if (tab !== 'tables') {
     closeTableDialog()
   }
+  if (tab !== 'checkin') {
+    closeScanDialog()
+  }
+}
+
+async function openScanDialog({ startCamera = true } = {}) {
+  activeTab.value = 'checkin'
+  isScanDialogOpen.value = true
+  scanErrorMessage.value = ''
+  scanStatusMessage.value = ''
+
+  if (!startCamera || scannedGuest.value) return
+  await nextTick()
+  await startCameraScan()
+}
+
+function closeScanDialog() {
+  isScanDialogOpen.value = false
+  stopCameraScan()
 }
 
 function checkinUrlToken(value) {
@@ -445,6 +458,7 @@ async function resolveCheckinToken(tokenValue) {
   if (!token) return
 
   activeTab.value = 'checkin'
+  isScanDialogOpen.value = true
   isResolvingScan.value = true
   scanErrorMessage.value = ''
   scanStatusMessage.value = ''
@@ -466,6 +480,7 @@ function closeScannedGuest() {
   scannedGuest.value = null
   scanErrorMessage.value = ''
   scanStatusMessage.value = ''
+  closeScanDialog()
   if (route.name === 'checkin-scan') {
     router.replace({ name: 'checkin' })
   }
@@ -587,13 +602,13 @@ async function saveGiftAmount(guest, value, version) {
 
   try {
     const payloadValue = value === '' ? 0 : normalizeGiftAmount(value)
-    const updated = await patchGuest(guest.id, {
+    const updated = await patchGuestCheckin(guest.id, {
       gift_amount: payloadValue,
     })
 
     if (giftInputVersions.get(guest.id) !== version) return
 
-    applyUpdatedGuest(updated)
+    applyUpdatedGuest(updated, { syncActualDraft: false })
     clearGiftDraft(guest.id)
     setGiftSaveState(guest.id, 'saved')
     scheduleGiftStateClear(guest.id, 'saved')
@@ -638,9 +653,9 @@ function handleAdminNotesInput(guest, value) {
   }
 
   const timer = setTimeout(() => {
-    updateGuestField(guest.id, {
+    updateGuestCheckinField(guest.id, {
       admin_notes: value.trim() || null,
-    })
+    }, { syncActualDraft: false, updateScanStatus: false })
     pendingNotesTimers.delete(guest.id)
   }, 500)
 
@@ -653,6 +668,7 @@ function handleCakePickupToggle(guest) {
     cake_status: guest.cake_status === 'pickup' ? 'pending_pickup' : 'pickup',
   }, {
     syncActualDraft: false,
+    updateScanStatus: false,
   })
 }
 
@@ -943,47 +959,68 @@ onBeforeUnmount(() => {
         <div class="section-head">
           <div>
             <p class="eyebrow">QR Check-in</p>
-            <h2>掃碼快速定位</h2>
-            <p class="lead">掃到 QR Code 後先確認資料，再手動標記到場。</p>
+            <h2>掃描簽到</h2>
+            <p class="lead">開啟掃描視窗後，掃到 QR Code 會直接進入報到資訊。</p>
           </div>
           <div class="toolbar">
             <button
               class="btn btn-primary"
               type="button"
-              :disabled="isCameraScanning"
-              @click="startCameraScan"
+              :disabled="isResolvingScan"
+              @click="openScanDialog()"
             >
-              {{ isCameraScanning ? '掃描中...' : '開啟相機掃描' }}
-            </button>
-            <button
-              v-if="isCameraScanning"
-              class="btn btn-ghost"
-              type="button"
-              @click="stopCameraScan"
-            >
-              停止
+              {{ isResolvingScan ? '讀取中...' : '掃描簽到' }}
             </button>
           </div>
         </div>
 
-        <div v-if="isCameraScanning" class="scanner-frame">
-          <video ref="scannerVideo" playsinline muted></video>
-        </div>
-
-        <p v-if="isResolvingScan" class="message">讀取 QR Code 中...</p>
-        <p v-if="scanErrorMessage" class="message message--error">{{ scanErrorMessage }}</p>
-        <p v-if="scanStatusMessage" class="message shipping-success">{{ scanStatusMessage }}</p>
-
       </section>
 
       <div
-        v-if="scannedGuest"
+        v-if="isScanDialogOpen || scannedGuest"
         class="dialog-backdrop"
         role="presentation"
         @click.self="closeScannedGuest"
       >
         <article class="dialog-card scan-result-dialog" role="dialog" aria-modal="true">
-          <div class="scan-result-head">
+          <div v-if="!scannedGuest" class="scan-result-head">
+            <div>
+              <p class="eyebrow">QR Check-in</p>
+              <h2>掃描簽到</h2>
+            </div>
+            <div class="toolbar">
+              <button
+                class="btn btn-primary"
+                type="button"
+                :disabled="isCameraScanning || isResolvingScan"
+                @click="startCameraScan"
+              >
+                {{ isCameraScanning ? '掃描中...' : '開啟相機掃描' }}
+              </button>
+              <button
+                v-if="isCameraScanning"
+                class="btn btn-ghost"
+                type="button"
+                @click="stopCameraScan"
+              >
+                停止
+              </button>
+              <button class="btn btn-ghost" type="button" @click="closeScannedGuest">
+                關閉
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!scannedGuest" class="scanner-dialog-body">
+            <div v-if="isCameraScanning" class="scanner-frame">
+              <video ref="scannerVideo" playsinline muted></video>
+            </div>
+            <p v-else class="message">按下開啟相機掃描後，將 QR Code 放在畫面中央。</p>
+            <p v-if="isResolvingScan" class="message">讀取 QR Code 中...</p>
+            <p v-if="scanErrorMessage" class="message message--error">{{ scanErrorMessage }}</p>
+          </div>
+
+          <div v-if="scannedGuest" class="scan-result-head">
             <div>
               <p class="eyebrow">Scan Result</p>
               <h2>{{ scannedGuest.name }}</h2>
@@ -1008,13 +1045,18 @@ onBeforeUnmount(() => {
                 </span>
               </div>
             </div>
+            <button class="btn btn-ghost" type="button" @click="closeScannedGuest">
+              關閉
+            </button>
           </div>
 
-          <p class="message scan-result-status-note">
+          <p v-if="scannedGuest" class="message scan-result-status-note">
             {{ scannedGuestStatusText(scannedGuest) }}
           </p>
+          <p v-if="scannedGuest && scanErrorMessage" class="message message--error">{{ scanErrorMessage }}</p>
+          <p v-if="scannedGuest && scanStatusMessage" class="message shipping-success">{{ scanStatusMessage }}</p>
 
-          <div class="scan-result-grid">
+          <div v-if="scannedGuest" class="scan-result-grid">
             <div>
               <p class="shipping-label">RSVP 人數</p>
               <p class="shipping-value">
@@ -1062,7 +1104,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="scan-result-input-grid">
+          <div v-if="scannedGuest" class="scan-result-input-grid">
             <label class="gift-field">
               <span class="gift-field-head">
                 <span>禮金金額</span>
@@ -1099,7 +1141,7 @@ onBeforeUnmount(() => {
             </label>
           </div>
 
-          <div class="toolbar scan-result-actions">
+          <div v-if="scannedGuest" class="toolbar scan-result-actions">
             <button
               class="btn btn-primary"
               type="button"
