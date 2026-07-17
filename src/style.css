@@ -1001,6 +1001,55 @@ textarea.field-control {
   word-break: break-word;
 }
 
+.shipping-status-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.shipping-status-tag {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.shipping-status-tag__label {
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--meta);
+  padding: 7px 8px;
+}
+
+.shipping-status-tag__value {
+  color: var(--fg-2);
+  padding: 7px 10px 7px 8px;
+  white-space: nowrap;
+}
+
+.shipping-status-tag--warn {
+  background: color-mix(in oklab, var(--warn), white 84%);
+  border-color: color-mix(in oklab, var(--warn), white 64%);
+}
+
+.shipping-status-tag--warn .shipping-status-tag__value {
+  color: color-mix(in oklab, var(--warn), black 44%);
+}
+
+.shipping-status-tag--success {
+  background: color-mix(in oklab, var(--success), white 86%);
+  border-color: color-mix(in oklab, var(--success), white 68%);
+}
+
+.shipping-status-tag--success .shipping-status-tag__value {
+  color: color-mix(in oklab, var(--success), black 24%);
+}
+
 .shipping-block {
   border-top: 1px solid var(--border-soft);
   display: grid;

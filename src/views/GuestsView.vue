@@ -377,6 +377,40 @@ function cakeStatusLabel(status) {
   return '不需要'
 }
 
+function shippingStatusTone(status) {
+  if (status === 'pending_address' || status === 'pending_send' || status === 'pending_pickup') {
+    return 'warn'
+  }
+  if (status === 'sent' || status === 'received' || status === 'pickup') {
+    return 'success'
+  }
+  return 'neutral'
+}
+
+function shippingStatusItems(guest) {
+  const invitationStatus = guest.need_invitation
+    ? guest.invitation_status
+    : 'not_required'
+  const cakeStatus = guest.decline_response === 'request_cake' || guest.status === 'attend'
+    ? guest.cake_status
+    : 'not_required'
+
+  return [
+    {
+      key: 'invitation',
+      label: '喜帖',
+      value: invitationStatusLabel(invitationStatus),
+      tone: shippingStatusTone(invitationStatus),
+    },
+    {
+      key: 'cake',
+      label: '喜餅',
+      value: cakeStatusLabel(cakeStatus),
+      tone: shippingStatusTone(cakeStatus),
+    },
+  ]
+}
+
 function shippingLabel(guest) {
   if (guest.need_invitation && guest.decline_response === 'request_cake') {
     return '喜帖 + 喜餅'
@@ -865,15 +899,17 @@ onMounted(loadGuests)
 
               <div>
                 <p class="shipping-label">寄送狀態</p>
-                <p class="shipping-value">
-                  喜帖 {{ invitationStatusLabel(guest.invitation_status) }}
-                  <template v-if="guest.decline_response === 'request_cake'">
-                    · 喜餅 {{ cakeStatusLabel(guest.cake_status) }}
-                  </template>
-                  <template v-else-if="guest.status === 'attend'">
-                    · 喜餅 {{ cakeStatusLabel(guest.cake_status) }}
-                  </template>
-                </p>
+                <div class="shipping-status-tags" aria-label="寄送狀態">
+                  <span
+                    v-for="item in shippingStatusItems(guest)"
+                    :key="item.key"
+                    class="shipping-status-tag"
+                    :class="`shipping-status-tag--${item.tone}`"
+                  >
+                    <span class="shipping-status-tag__label">{{ item.label }}</span>
+                    <span class="shipping-status-tag__value">{{ item.value }}</span>
+                  </span>
+                </div>
                 <p v-if="guest.need_invitation && guest.invitation_address" class="guest-sub">
                   喜帖地址：{{ guest.invitation_address }}
                 </p>
