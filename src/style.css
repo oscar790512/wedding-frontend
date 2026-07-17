@@ -75,7 +75,6 @@
 }
 
 .checkin-qr-card,
-.scan-panel,
 .scan-result-card {
   background: rgba(255, 255, 255, 0.76);
   border: 1px solid rgba(60, 49, 42, 0.12);
@@ -115,9 +114,11 @@
   background: #111827;
   border-radius: 8px;
   display: grid;
+  justify-self: center;
   min-height: 260px;
   overflow: hidden;
   place-items: center;
+  width: min(100%, 540px);
 }
 
 .scanner-frame video {
@@ -131,6 +132,22 @@
 .scanner-dialog-body {
   display: grid;
   gap: var(--space-3);
+  justify-items: center;
+}
+
+.scanner-dialog-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.scanner-dialog-actions .btn {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  width: auto;
 }
 
 .scan-result-card {
@@ -2770,6 +2787,17 @@ textarea.field-control {
   .actions .btn,
   .toolbar .btn {
     width: 100%;
+  }
+
+  .scanner-dialog-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+
+  .scanner-dialog-actions .btn {
+    flex: 0 0 auto;
+    padding-inline: 12px;
+    width: auto;
   }
 
   .line-follow-card {

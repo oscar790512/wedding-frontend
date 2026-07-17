@@ -839,7 +839,7 @@ onBeforeUnmount(() => {
         >
           匯出現場簽到 Excel
         </button>
-        <button class="btn btn-primary" type="button" @click="startCameraScan">
+        <button class="btn btn-primary" type="button" @click="openScanDialog()">
           掃描 QR
         </button>
       </div>
@@ -955,27 +955,6 @@ onBeforeUnmount(() => {
     </div>
 
     <section v-if="activeTab === 'checkin'" class="ops-panel checkin-workbench">
-      <section class="scan-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">QR Check-in</p>
-            <h2>掃描簽到</h2>
-            <p class="lead">開啟掃描視窗後，掃到 QR Code 會直接進入報到資訊。</p>
-          </div>
-          <div class="toolbar">
-            <button
-              class="btn btn-primary"
-              type="button"
-              :disabled="isResolvingScan"
-              @click="openScanDialog()"
-            >
-              {{ isResolvingScan ? '讀取中...' : '掃描簽到' }}
-            </button>
-          </div>
-        </div>
-
-      </section>
-
       <div
         v-if="isScanDialogOpen || scannedGuest"
         class="dialog-backdrop"
@@ -988,7 +967,7 @@ onBeforeUnmount(() => {
               <p class="eyebrow">QR Check-in</p>
               <h2>掃描簽到</h2>
             </div>
-            <div class="toolbar">
+            <div class="toolbar scanner-dialog-actions">
               <button
                 class="btn btn-primary"
                 type="button"
@@ -1045,9 +1024,6 @@ onBeforeUnmount(() => {
                 </span>
               </div>
             </div>
-            <button class="btn btn-ghost" type="button" @click="closeScannedGuest">
-              關閉
-            </button>
           </div>
 
           <p v-if="scannedGuest" class="message scan-result-status-note">
