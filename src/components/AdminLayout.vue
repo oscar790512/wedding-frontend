@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
@@ -20,18 +20,23 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const { username, clearSession } = useAuth()
+const { username, displayName, role, clearSession } = useAuth()
 const sidebarStorageKey = 'adminSidebarCollapsed'
 const isSidebarCollapsed = ref(localStorage.getItem(sidebarStorageKey) === 'true')
 
-const navItems = [
+const baseNavItems = [
   { to: '/admin/dashboard', label: '統計大盤' },
   { to: '/admin/guests', label: '賓客管理' },
   { to: '/admin/shipping', label: '寄送待辦' },
   { to: '/admin/tables', label: '桌次安排' },
   { to: '/admin/operations', label: '現場工作台' },
-  { to: '/admin/settings', label: '系統設定' },
 ]
+const navItems = computed(() => [
+  ...baseNavItems,
+  ...(role.value === 'admin'
+    ? [{ to: '/admin/settings', label: '系統設定' }]
+    : []),
+])
 
 function logout() {
   clearSession()
@@ -103,7 +108,7 @@ function toggleSidebar() {
         <p v-if="props.subtitle" class="sidebar-note">
           {{ props.subtitle }}
         </p>
-        <p class="sidebar-user">登入：{{ username }}</p>
+        <p class="sidebar-user">登入：{{ displayName || username }}</p>
       </aside>
 
       <main class="admin-main">

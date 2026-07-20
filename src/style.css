@@ -2284,7 +2284,7 @@ textarea.field-control {
 }
 
 .settings-panel {
-  max-width: 760px;
+  max-width: 980px;
 }
 
 .settings-panel__head {
@@ -2302,6 +2302,199 @@ textarea.field-control {
 
 .settings-preview {
   margin-top: 8px;
+}
+
+.settings-stack {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.account-management-panel {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.staff-create-form {
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--space-5);
+}
+
+.staff-create-form h3,
+.staff-list-head h3 {
+  margin: 0;
+}
+
+.staff-create-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field .field-control {
+  padding-right: 72px;
+}
+
+.password-toggle {
+  background: transparent;
+  border: 0;
+  color: var(--accent-hover);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  padding: 8px;
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.password-toggle:focus-visible {
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.staff-list-section {
+  border-top: 1px solid var(--border-soft);
+  padding-top: var(--space-6);
+}
+
+.staff-list-head {
+  align-items: start;
+  margin-bottom: var(--space-4);
+}
+
+.staff-list-head .muted {
+  margin-bottom: 0;
+}
+
+.staff-account-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.staff-account-row {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 14px 16px;
+}
+
+.staff-account-row.is-disabled {
+  background: color-mix(in oklab, var(--surface), white 48%);
+}
+
+.staff-account-identity {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.staff-account-identity strong {
+  color: var(--fg);
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.staff-account-identity p {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.staff-account-actions .btn {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-danger-outline {
+  background: transparent;
+  border: 1px solid color-mix(in oklab, var(--danger), white 20%);
+  color: var(--danger);
+}
+
+.empty-state {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  margin: 0;
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.audit-list {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.audit-list li {
+  align-items: center;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  padding: 14px 0;
+}
+
+.audit-list li:first-child {
+  border-top: 0;
+}
+
+.audit-list li div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.audit-list time {
+  color: var(--muted);
+  flex: none;
+  font-size: var(--text-sm);
+}
+
+.staff-account-dialog {
+  max-width: 560px;
+}
+
+.staff-dialog-head {
+  align-items: start;
+  margin-bottom: var(--space-5);
+}
+
+.staff-dialog-head h2 {
+  font-size: clamp(26px, 3vw, 36px);
+}
+
+.staff-dialog-actions {
+  justify-content: flex-end;
 }
 
 .rsvp-hero {
@@ -2776,8 +2969,30 @@ textarea.field-control {
   .table-card-controls,
   .table-checkin-dialog,
   .seat-guest,
-  .segmented--guests {
+  .segmented--guests,
+  .staff-create-grid,
+  .staff-account-row {
     grid-template-columns: 1fr;
+  }
+
+  .staff-account-identity,
+  .audit-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .staff-account-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .staff-account-actions .btn:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .audit-list time {
+    flex: auto;
   }
 
   .form-grid.two.rsvp-relationship-grid {

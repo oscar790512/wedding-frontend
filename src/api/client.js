@@ -91,6 +91,51 @@ export function updateAdminRsvpSettings(payload) {
   })
 }
 
+export function fetchStaffUsers() {
+  return apiRequest('/api/admin/staff-users')
+}
+
+export function createStaffUser(payload) {
+  return apiRequest('/api/admin/staff-users', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateStaffDisplayName(username, displayName) {
+  return apiRequest(
+    `/api/admin/staff-users/${encodeURIComponent(username)}/display-name`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ display_name: displayName }),
+    },
+  )
+}
+
+export function resetStaffPassword(username, password) {
+  return apiRequest(
+    `/api/admin/staff-users/${encodeURIComponent(username)}/password`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    },
+  )
+}
+
+export function updateStaffStatus(username, isActive) {
+  return apiRequest(
+    `/api/admin/staff-users/${encodeURIComponent(username)}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ is_active: isActive }),
+    },
+  )
+}
+
+export function fetchStaffAuditLogs() {
+  return apiRequest('/api/admin/staff-user-audit-logs')
+}
+
 export function fetchGuests(query = '') {
   const params = new URLSearchParams()
 

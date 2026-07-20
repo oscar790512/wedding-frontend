@@ -134,6 +134,46 @@ describe('apiRequest', () => {
     })
   })
 
+  it('uses protected staff account management endpoints', async () => {
+    const calls = []
+    localStorage.setItem('token', 'admin-token')
+    globalThis.fetch = async (url, options) => {
+      calls.push({ url, options })
+      return jsonResponse({ username: 'frontdesk-1' })
+    }
+
+    await api.createStaffUser({
+      username: 'frontdesk-1',
+      display_name: '怡君',
+      password: 'password123',
+    })
+    await api.updateStaffDisplayName('frontdesk-1', '接待組長')
+    await api.resetStaffPassword('frontdesk-1', 'new-password')
+    await api.updateStaffStatus('frontdesk-1', false)
+    await api.fetchStaffAuditLogs()
+
+    assert.deepEqual(
+      calls.map(({ url, options }) => [url, options.method || 'GET']),
+      [
+        ['http://localhost:8000/api/admin/staff-users', 'POST'],
+        [
+          'http://localhost:8000/api/admin/staff-users/frontdesk-1/display-name',
+          'PATCH',
+        ],
+        [
+          'http://localhost:8000/api/admin/staff-users/frontdesk-1/password',
+          'POST',
+        ],
+        [
+          'http://localhost:8000/api/admin/staff-users/frontdesk-1/status',
+          'PATCH',
+        ],
+        ['http://localhost:8000/api/admin/staff-user-audit-logs', 'GET'],
+      ],
+    )
+    assert.ok(calls.every(({ options }) => options.headers.Authorization === 'Bearer admin-token'))
+  })
+
   it('wraps browser network failures in the guest-facing connection message', async () => {
     globalThis.fetch = async () => {
       throw new TypeError('Failed to fetch')

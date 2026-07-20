@@ -48,7 +48,7 @@ const router = createRouter({
       path: '/admin/settings',
       name: 'settings',
       component: SettingsView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresRole: 'admin' },
     },
     {
       path: '/admin/operations',
@@ -66,9 +66,12 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, role } = useAuth()
   if (to.meta.requiresAuth && !isAuthenticated.value) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+  if (to.meta.requiresRole && role.value !== to.meta.requiresRole) {
+    return { name: 'dashboard' }
   }
   if (to.name === 'login' && isAuthenticated.value) {
     return { name: 'dashboard' }
