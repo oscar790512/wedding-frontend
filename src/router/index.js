@@ -4,6 +4,7 @@ import { useAuth } from '../composables/useAuth'
 import CheckinView from '../views/CheckinView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import GuestsView from '../views/GuestsView.vue'
+import InvitationView from '../views/InvitationView.vue'
 import LoginView from '../views/LoginView.vue'
 import RsvpView from '../views/RsvpView.vue'
 import ShippingView from '../views/ShippingView.vue'
@@ -14,6 +15,7 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: '/rsvp' },
+    { path: '/invitation', name: 'invitation', component: InvitationView },
     { path: '/rsvp', name: 'rsvp', component: RsvpView },
     { path: '/login', name: 'login', component: LoginView },
     {
