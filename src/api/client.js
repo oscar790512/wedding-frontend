@@ -137,6 +137,10 @@ export function fetchStaffAuditLogs() {
 }
 
 export function fetchGuests(query = '') {
+  return fetchAllGuests(query)
+}
+
+function buildGuestSearchParams(query = '') {
   const params = new URLSearchParams()
 
   if (typeof query === 'string') {
@@ -150,8 +154,45 @@ export function fetchGuests(query = '') {
     })
   }
 
+  return params
+}
+
+export async function fetchGuestPage(query = '') {
+  const params = buildGuestSearchParams(query)
   const search = params.toString()
-  return apiRequest(`/api/admin/guests${search ? `?${search}` : ''}`)
+  const result = await apiRequest(`/api/admin/guests${search ? `?${search}` : ''}`)
+
+  if (Array.isArray(result)) {
+    return {
+      items: result,
+      total: result.length,
+      page: Number(params.get('page') || 1),
+      page_size: Number(params.get('page_size') || result.length || 50),
+    }
+  }
+
+  return result
+}
+
+export async function fetchAllGuests(query = '') {
+  const firstPage = await fetchGuestPage({
+    ...((typeof query === 'object' && query) ? query : { q: query }),
+    page: 1,
+    page_size: 100,
+  })
+  const guests = [...firstPage.items]
+  const pageCount = Math.ceil(firstPage.total / firstPage.page_size)
+
+  for (let page = 2; page <= pageCount; page += 1) {
+    const nextPage = await fetchGuestPage({
+      ...((typeof query === 'object' && query) ? query : { q: query }),
+      page,
+      page_size: firstPage.page_size,
+    })
+    guests.push(...nextPage.items)
+  }
+
+  return guests
 }
 
 export function fetchTableSettings() {

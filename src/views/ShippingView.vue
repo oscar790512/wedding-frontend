@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 
-import { createGuest, deleteGuest, fetchGuests, patchGuest } from '../api/client'
+import { createGuest, deleteGuest, fetchGuestPage, patchGuest } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 
 const CATEGORY_OPTIONS = [
@@ -25,6 +25,16 @@ const successMessage = ref('')
 const editingGuestId = ref(null)
 const isShippingFormOpen = ref(false)
 const isAdvancedSearchOpen = ref(false)
+const page = ref(1)
+const pageSize = ref(50)
+const totalGuests = ref(0)
+const pageCount = computed(() => Math.max(Math.ceil(totalGuests.value / pageSize.value), 1))
+const paginationSummary = computed(() => {
+  if (totalGuests.value === 0) return '0 筆'
+  const start = (page.value - 1) * pageSize.value + 1
+  const end = Math.min(page.value * pageSize.value, totalGuests.value)
+  return `${start}-${end} / ${totalGuests.value} 筆`
+})
 
 const createInitialForm = () => ({
   name: '',
@@ -66,17 +76,18 @@ const visibleGuests = computed(() => {
 })
 
 const shippingStats = computed(() => [
-  { label: '寄送待辦總數', value: guests.value.length },
+  { label: '符合條件', value: totalGuests.value },
+  { label: '本頁待辦', value: guests.value.length },
   {
-    label: '喜帖寄送',
+    label: '本頁喜帖',
     value: guests.value.filter((guest) => guest.need_invitation).length,
   },
   {
-    label: '喜餅寄送',
+    label: '本頁喜餅',
     value: guests.value.filter((guest) => guest.decline_response === 'request_cake').length,
   },
   {
-    label: '待補資料',
+    label: '本頁待補',
     value: guests.value.filter((guest) => isPendingGuest(guest)).length,
   },
 ])
@@ -189,15 +200,38 @@ async function loadGuests() {
   errorMessage.value = ''
 
   try {
-    guests.value = await fetchGuests({
+    const guestPage = await fetchGuestPage({
       q: searchQuery.value.trim(),
       shipping: shippingFilter.value === 'all' ? undefined : shippingFilter.value,
+      page: page.value,
+      page_size: pageSize.value,
     })
+    guests.value = guestPage.items
+    totalGuests.value = guestPage.total
+    page.value = guestPage.page
+    pageSize.value = guestPage.page_size
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
   }
+}
+
+function resetPaginationAndLoadGuests() {
+  page.value = 1
+  loadGuests()
+}
+
+function goToPreviousPage() {
+  if (page.value <= 1) return
+  page.value -= 1
+  loadGuests()
+}
+
+function goToNextPage() {
+  if (page.value >= pageCount.value) return
+  page.value += 1
+  loadGuests()
 }
 
 async function submitForm() {
@@ -289,10 +323,10 @@ function shippingAddressLabel(guest) {
 let searchTimer
 watch(searchQuery, () => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(loadGuests, 300)
+  searchTimer = setTimeout(resetPaginationAndLoadGuests, 300)
 })
 
-watch(shippingFilter, loadGuests)
+watch(shippingFilter, resetPaginationAndLoadGuests)
 
 watch(
   () => form.value.status,
@@ -610,6 +644,19 @@ onMounted(loadGuests)
         <p v-if="isLoading" class="message">載入中...</p>
 
         <section v-else class="shipping-list">
+          <div class="pagination-bar">
+            <p class="guest-sub">{{ paginationSummary }}</p>
+            <div class="toolbar">
+              <button class="btn btn-ghost" type="button" :disabled="page <= 1" @click="goToPreviousPage">
+                上一頁
+              </button>
+              <span class="guest-sub">第 {{ page }} / {{ pageCount }} 頁</span>
+              <button class="btn btn-ghost" type="button" :disabled="page >= pageCount" @click="goToNextPage">
+                下一頁
+              </button>
+            </div>
+          </div>
+
           <article
             v-for="guest in visibleGuests"
             :key="guest.id"

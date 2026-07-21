@@ -909,6 +909,17 @@ textarea.field-control {
   gap: 10px;
 }
 
+.pagination-bar {
+  align-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
 .dashboard-actions {
   padding-bottom: 0;
   padding-top: var(--space-8);
@@ -3001,6 +3012,15 @@ textarea.field-control {
 
   .actions .btn,
   .toolbar .btn {
+    width: 100%;
+  }
+
+  .pagination-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pagination-bar .toolbar {
     width: 100%;
   }
 

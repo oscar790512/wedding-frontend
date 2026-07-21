@@ -174,6 +174,51 @@ describe('apiRequest', () => {
     assert.ok(calls.every(({ options }) => options.headers.Authorization === 'Bearer admin-token'))
   })
 
+  it('fetches paginated guests and keeps the legacy helper loading all pages', async () => {
+    const calls = []
+    globalThis.fetch = async (url, options) => {
+      calls.push({ url, options })
+      const page = new URL(url).searchParams.get('page')
+      if (page === '2') {
+        return jsonResponse({
+          items: [{ id: 'guest-2', name: 'Peiyu' }],
+          total: 2,
+          page: 2,
+          page_size: 1,
+        })
+      }
+      return jsonResponse({
+        items: [{ id: 'guest-1', name: 'Oscar' }],
+        total: 2,
+        page: 1,
+        page_size: 1,
+      })
+    }
+
+    const page = await api.fetchGuestPage({
+      q: 'Oscar',
+      status: 'attend',
+      page: 1,
+      page_size: 1,
+    })
+    const guests = await api.fetchGuests()
+
+    assert.deepEqual(page, {
+      items: [{ id: 'guest-1', name: 'Oscar' }],
+      total: 2,
+      page: 1,
+      page_size: 1,
+    })
+    assert.deepEqual(guests, [
+      { id: 'guest-1', name: 'Oscar' },
+      { id: 'guest-2', name: 'Peiyu' },
+    ])
+    assert.equal(
+      calls[0].url,
+      'http://localhost:8000/api/admin/guests?q=Oscar&status=attend&page=1&page_size=1',
+    )
+  })
+
   it('wraps browser network failures in the guest-facing connection message', async () => {
     globalThis.fetch = async () => {
       throw new TypeError('Failed to fetch')

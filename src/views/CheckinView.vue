@@ -5,7 +5,7 @@ import jsQR from 'jsqr'
 
 import {
   fetchGuestByCheckinToken,
-  fetchGuests,
+  fetchGuestPage,
   fetchTableSettings,
   patchGuestCheckin,
 } from '../api/client'
@@ -42,6 +42,9 @@ const giftDrafts = ref({})
 const giftSaveStates = ref({})
 const activeTab = ref('checkin')
 const scannedGuest = ref(null)
+const page = ref(1)
+const pageSize = ref(50)
+const totalGuests = ref(0)
 let scannerStream = null
 let scannerFrame = null
 let scannerCanvas = null
@@ -50,6 +53,13 @@ let scannerFrameCount = 0
 const tableOrder = computed(() =>
   new Map(tableSettings.value.map((setting, index) => [setting.table_name, index])),
 )
+const pageCount = computed(() => Math.max(Math.ceil(totalGuests.value / pageSize.value), 1))
+const paginationSummary = computed(() => {
+  if (totalGuests.value === 0) return '0 筆'
+  const start = (page.value - 1) * pageSize.value + 1
+  const end = Math.min(page.value * pageSize.value, totalGuests.value)
+  return `${start}-${end} / ${totalGuests.value} 筆`
+})
 
 const attendingGuestExportRows = computed(() =>
   guests.value
@@ -227,11 +237,19 @@ async function loadGuests() {
   errorMessage.value = ''
 
   try {
-    const [guestData, settingData] = await Promise.all([
-      fetchGuests(searchQuery.value.trim()),
+    const [guestPage, settingData] = await Promise.all([
+      fetchGuestPage({
+        q: searchQuery.value.trim(),
+        status: attendingOnly.value ? 'attend' : undefined,
+        page: page.value,
+        page_size: pageSize.value,
+      }),
       fetchTableSettings(),
     ])
-    guests.value = guestData.map(normalizeGuest)
+    guests.value = guestPage.items.map(normalizeGuest)
+    totalGuests.value = guestPage.total
+    page.value = guestPage.page
+    pageSize.value = guestPage.page_size
     tableSettings.value = settingData
     syncActualCountDrafts(guests.value)
   } catch (error) {
@@ -239,6 +257,46 @@ async function loadGuests() {
   } finally {
     isLoading.value = false
   }
+}
+
+function resetPaginationAndLoadGuests() {
+  page.value = 1
+  loadGuests()
+}
+
+function goToPreviousPage() {
+  if (page.value <= 1) return
+  page.value -= 1
+  loadGuests()
+}
+
+function goToNextPage() {
+  if (page.value >= pageCount.value) return
+  page.value += 1
+  loadGuests()
+}
+
+async function fetchAllCheckinExportGuests() {
+  const firstPage = await fetchGuestPage({
+    q: searchQuery.value.trim(),
+    status: 'attend',
+    page: 1,
+    page_size: 100,
+  })
+  const allGuests = [...firstPage.items]
+  const totalPages = Math.ceil(firstPage.total / firstPage.page_size)
+
+  for (let nextPage = 2; nextPage <= totalPages; nextPage += 1) {
+    const guestPage = await fetchGuestPage({
+      q: searchQuery.value.trim(),
+      status: 'attend',
+      page: nextPage,
+      page_size: 100,
+    })
+    allGuests.push(...guestPage.items)
+  }
+
+  return allGuests.map(normalizeGuest)
 }
 
 async function updateGuestCheckinField(guestId, payload, options = {}) {
@@ -311,7 +369,9 @@ function formatExportTimestamp(date = new Date()) {
 }
 
 async function exportCheckinWorkbook() {
-  const rows = attendingGuestExportRows.value
+  const rows = (await fetchAllCheckinExportGuests())
+    .sort(compareGuestsForCheckinExport)
+    .map(checkinExportRow)
   if (!rows.length) return
 
   const ExcelJSModule = await import('exceljs')
@@ -780,8 +840,10 @@ function declineResponseLabel(response) {
 let searchTimer
 watch(searchQuery, () => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(loadGuests, 300)
+  searchTimer = setTimeout(resetPaginationAndLoadGuests, 300)
 })
+
+watch(attendingOnly, resetPaginationAndLoadGuests)
 
 onMounted(async () => {
   await loadGuests()
@@ -1167,6 +1229,19 @@ onBeforeUnmount(() => {
       <p v-if="isLoading" class="message">載入中...</p>
 
       <div v-else class="checkin-list">
+        <div class="pagination-bar">
+          <p class="guest-sub">{{ paginationSummary }}</p>
+          <div class="toolbar">
+            <button class="btn btn-ghost" type="button" :disabled="page <= 1" @click="goToPreviousPage">
+              上一頁
+            </button>
+            <span class="guest-sub">第 {{ page }} / {{ pageCount }} 頁</span>
+            <button class="btn btn-ghost" type="button" :disabled="page >= pageCount" @click="goToNextPage">
+              下一頁
+            </button>
+          </div>
+        </div>
+
         <article v-for="guest in visibleGuests" :key="guest.id" class="checkin-row">
           <div>
             <div class="checkin-guest-head">

@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import {
   createGuest,
   deleteGuest,
-  fetchGuests,
+  fetchGuestPage,
   fetchTableSettings,
   patchGuest,
   resetGuestCheckinToken,
@@ -41,6 +41,16 @@ const editingGuestId = ref(null)
 const isGuestFormOpen = ref(false)
 const isAdvancedSearchOpen = ref(false)
 const qrGuest = ref(null)
+const page = ref(1)
+const pageSize = ref(50)
+const totalGuests = ref(0)
+const pageCount = computed(() => Math.max(Math.ceil(totalGuests.value / pageSize.value), 1))
+const paginationSummary = computed(() => {
+  if (totalGuests.value === 0) return '0 筆'
+  const start = (page.value - 1) * pageSize.value + 1
+  const end = Math.min(page.value * pageSize.value, totalGuests.value)
+  return `${start}-${end} / ${totalGuests.value} 筆`
+})
 
 const qrCheckinUrl = computed(() => {
   if (!qrGuest.value?.checkin_token) return ''
@@ -110,10 +120,11 @@ const listStats = computed(() => {
   const undecided = guests.value.filter((guest) => guest.status === 'undecided').length
 
   return [
-    { label: '全部名單', value: total },
+    { label: '符合條件', value: totalGuests.value },
+    { label: '本頁名單', value: total },
     { label: '確認出席', value: attend },
     { label: '寄送待辦', value: shipping },
-    { label: '未回覆', value: undecided },
+    { label: '本頁未回覆', value: undecided },
   ]
 })
 
@@ -132,8 +143,8 @@ async function loadGuests() {
   errorMessage.value = ''
 
   try {
-    const [guestData, settingData] = await Promise.all([
-      fetchGuests({
+    const [guestPage, settingData] = await Promise.all([
+      fetchGuestPage({
         q: searchQuery.value.trim(),
         status: normalizeQueryValue(statusFilter.value),
         shipping: normalizeQueryValue(shippingFilter.value),
@@ -145,17 +156,39 @@ async function loadGuests() {
             : dietFilter.value === 'without'
               ? false
               : undefined,
+        page: page.value,
+        page_size: pageSize.value,
       }),
       fetchTableSettings(),
     ])
 
-    guests.value = guestData
+    guests.value = guestPage.items
+    totalGuests.value = guestPage.total
+    page.value = guestPage.page
+    pageSize.value = guestPage.page_size
     tableSettings.value = settingData
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
   }
+}
+
+function resetPaginationAndLoadGuests() {
+  page.value = 1
+  loadGuests()
+}
+
+function goToPreviousPage() {
+  if (page.value <= 1) return
+  page.value -= 1
+  loadGuests()
+}
+
+function goToNextPage() {
+  if (page.value >= pageCount.value) return
+  page.value += 1
+  loadGuests()
 }
 
 function resetForm() {
@@ -451,10 +484,13 @@ function attendanceSummary(guest) {
 let searchTimer
 watch(searchQuery, () => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(loadGuests, 300)
+  searchTimer = setTimeout(resetPaginationAndLoadGuests, 300)
 })
 
-watch([statusFilter, shippingFilter, categoryFilter, tableFilter, dietFilter], loadGuests)
+watch(
+  [statusFilter, shippingFilter, categoryFilter, tableFilter, dietFilter],
+  resetPaginationAndLoadGuests,
+)
 
 watch(
   () => form.value.status,
@@ -864,6 +900,19 @@ onMounted(loadGuests)
         <p v-if="isLoading" class="message">載入中...</p>
 
         <section v-else class="shipping-list">
+          <div class="pagination-bar">
+            <p class="guest-sub">{{ paginationSummary }}</p>
+            <div class="toolbar">
+              <button class="btn btn-ghost" type="button" :disabled="page <= 1" @click="goToPreviousPage">
+                上一頁
+              </button>
+              <span class="guest-sub">第 {{ page }} / {{ pageCount }} 頁</span>
+              <button class="btn btn-ghost" type="button" :disabled="page >= pageCount" @click="goToNextPage">
+                下一頁
+              </button>
+            </div>
+          </div>
+
           <article v-for="guest in guests" :key="guest.id" class="shipping-item guest-card">
             <div class="shipping-item__head guest-card__head">
               <div>
