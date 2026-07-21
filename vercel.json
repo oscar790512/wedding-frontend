@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; connect-src 'self' https:; img-src 'self' https://vercel.live data: blob:; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src https://vercel.live; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests"
+          "value": "default-src 'self'; connect-src 'self' https:; img-src 'self' https://vercel.live https://scdn.line-apps.com https://qr-official.line.me data: blob:; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src https://vercel.live; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests"
         },
         {
           "key": "Referrer-Policy",

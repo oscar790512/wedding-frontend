@@ -309,7 +309,7 @@ onMounted(() => {
                 class="field-control"
                 minlength="3"
                 maxlength="32"
-                pattern="[A-Za-z0-9._-]+"
+                pattern="[A-Za-z0-9._\-]+"
                 required
                 autocomplete="off"
                 placeholder="例如：frontdesk-1"

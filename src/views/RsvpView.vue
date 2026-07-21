@@ -680,7 +680,7 @@ onBeforeUnmount(() => {
                 required
                 inputmode="tel"
                 maxlength="16"
-                pattern="[0-9\s()-]{8,16}"
+                pattern="[0-9\s\(\)\-]{8,16}"
                 placeholder="手機或市話"
                 title="請輸入手機或市話，可含空白、括號或連字號"
               />
@@ -902,7 +902,7 @@ onBeforeUnmount(() => {
                 :disabled="form.use_cake_phone_same"
                 inputmode="tel"
                 maxlength="16"
-                pattern="[0-9\s()-]{8,16}"
+                pattern="[0-9\s\(\)\-]{8,16}"
                 :placeholder="form.use_cake_phone_same ? form.phone || '同填寫人電話' : '請輸入收件電話'"
                 :required="!form.use_cake_phone_same"
                 title="請輸入手機或市話，可含空白、括號或連字號"
