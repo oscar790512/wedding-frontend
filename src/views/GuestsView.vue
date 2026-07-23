@@ -937,6 +937,7 @@ onMounted(loadGuests)
                 <p class="shipping-label">桌次與人數</p>
                 <p class="shipping-value">
                   {{ guest.allocated_table || '未分桌' }} · 大人 {{ guest.total_adults }} / 小孩 {{ guest.total_children }}
+                  <template v-if="guest.child_seats > 0"> · 兒童座椅 {{ guest.child_seats }} 張</template>
                 </p>
                 <p class="guest-sub">{{ attendanceSummary(guest) }}</p>
               </div>
