@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { useAuth } from '../composables/useAuth'
+import CheckinScanEntryView from '../views/CheckinScanEntryView.vue'
 import CheckinView from '../views/CheckinView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import GuestsView from '../views/GuestsView.vue'
@@ -61,8 +62,7 @@ const router = createRouter({
     {
       path: '/admin/operations/scan/:token',
       name: 'checkin-scan',
-      component: CheckinView,
-      meta: { requiresAuth: true },
+      component: CheckinScanEntryView,
     },
   ],
 })

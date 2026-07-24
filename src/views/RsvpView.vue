@@ -5,6 +5,7 @@ import QRCode from 'qrcode'
 import backgroundImage from '../assets/background-2.jpg'
 import { fetchRsvpSettings, submitRsvp } from '../api/client'
 import QrCode from '../components/QrCode.vue'
+import { buildCheckinQrPayload } from '../utils/checkin'
 import { formatWeddingDate } from '../utils/date'
 import {
   buildRsvpPayload,
@@ -76,7 +77,7 @@ const submittedCheckinUrl = computed(() => {
   if (!submittedGuest.value?.checkin_token || submittedGuest.value.status !== 'attend') {
     return ''
   }
-  return `${window.location.origin}/admin/operations/scan/${submittedGuest.value.checkin_token}`
+  return buildCheckinQrPayload(submittedGuest.value.checkin_token)
 })
 const formattedRsvpDeadline = computed(() => formatWeddingDate(rsvpDeadline.value))
 const cakeRecipientValue = computed(() => cakeRecipientDisplayValue(form))
@@ -310,10 +311,7 @@ async function handleSubmit() {
     )
     submittedGuest.value = savedGuest
     if (savedGuest.status === 'attend' && savedGuest.checkin_token) {
-      await createCheckinSnapshot(
-        savedGuest,
-        `${window.location.origin}/admin/operations/scan/${savedGuest.checkin_token}`,
-      )
+      await createCheckinSnapshot(savedGuest, buildCheckinQrPayload(savedGuest.checkin_token))
     }
     successMessage.value =
       form.status === 'decline'

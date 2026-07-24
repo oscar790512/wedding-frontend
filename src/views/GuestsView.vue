@@ -11,6 +11,7 @@ import {
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 import QrCode from '../components/QrCode.vue'
+import { buildCheckinQrPayload } from '../utils/checkin'
 
 const CATEGORY_OPTIONS = [
   '男方同事/長官',
@@ -54,7 +55,7 @@ const paginationSummary = computed(() => {
 
 const qrCheckinUrl = computed(() => {
   if (!qrGuest.value?.checkin_token) return ''
-  return `${window.location.origin}/admin/operations/scan/${qrGuest.value.checkin_token}`
+  return buildCheckinQrPayload(qrGuest.value.checkin_token)
 })
 
 function createInitialForm() {

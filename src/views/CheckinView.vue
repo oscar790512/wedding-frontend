@@ -14,6 +14,7 @@ import VenueFloorPlan from '../components/VenueFloorPlan.vue'
 import {
   buildCheckinExportRow,
   buildCancelArrivalPayload,
+  parseCheckinQrToken,
   phoneLastThreeDigits,
 } from '../utils/checkin'
 import { buildFloorTableRows } from '../utils/tablePlan'
@@ -503,18 +504,8 @@ function closeScanDialog() {
   stopCameraScan()
 }
 
-function checkinUrlToken(value) {
-  try {
-    const url = new URL(value)
-    const match = url.pathname.match(/\/admin\/operations\/scan\/([^/]+)$/)
-    return match ? decodeURIComponent(match[1]) : value.trim()
-  } catch {
-    return value.trim()
-  }
-}
-
 async function resolveCheckinToken(tokenValue) {
-  const token = checkinUrlToken(tokenValue || '')
+  const token = parseCheckinQrToken(tokenValue || '')
   if (!token) return
 
   activeTab.value = 'checkin'

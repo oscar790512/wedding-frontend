@@ -2,12 +2,31 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  buildCheckinQrPayload,
   buildCheckinExportRow,
   buildCancelArrivalPayload,
+  parseCheckinQrToken,
   phoneLastThreeDigits,
 } from '../src/utils/checkin.js'
 
 describe('check-in helpers', () => {
+  it('builds a non-url QR payload for check-in tokens', () => {
+    assert.equal(buildCheckinQrPayload('token-123'), 'wedding-checkin:token-123')
+  })
+
+  it('parses the app QR payload, raw tokens, and legacy scan URLs', () => {
+    assert.equal(parseCheckinQrToken('wedding-checkin:token-123'), 'token-123')
+    assert.equal(parseCheckinQrToken(' token-123 '), 'token-123')
+    assert.equal(
+      parseCheckinQrToken('https://example.com/admin/operations/scan/token-123'),
+      'token-123',
+    )
+    assert.equal(
+      parseCheckinQrToken('https://example.com/admin/operations/scan/token%20123'),
+      'token 123',
+    )
+  })
+
   it('clears actual attendance counts when arrival is cancelled', () => {
     assert.deepEqual(buildCancelArrivalPayload(), {
       is_arrived: false,

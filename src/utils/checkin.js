@@ -1,3 +1,27 @@
+const CHECKIN_QR_PREFIX = 'wedding-checkin:'
+
+export function buildCheckinQrPayload(token) {
+  const trimmed = String(token || '').trim()
+  return trimmed ? `${CHECKIN_QR_PREFIX}${trimmed}` : ''
+}
+
+export function parseCheckinQrToken(value) {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) return ''
+
+  if (trimmed.startsWith(CHECKIN_QR_PREFIX)) {
+    return trimmed.slice(CHECKIN_QR_PREFIX.length).trim()
+  }
+
+  try {
+    const url = new URL(trimmed)
+    const match = url.pathname.match(/\/admin\/operations\/scan\/([^/]+)$/)
+    return match ? decodeURIComponent(match[1]) : trimmed
+  } catch {
+    return trimmed
+  }
+}
+
 export function buildCancelArrivalPayload() {
   return {
     is_arrived: false,
