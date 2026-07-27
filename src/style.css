@@ -2022,6 +2022,34 @@ textarea.field-control {
   gap: 6px;
 }
 
+@media (max-width: 1180px) {
+  .admin-main {
+    padding: clamp(18px, 3vw, 32px);
+  }
+
+  .checkin-row {
+    align-items: end;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 0.7fr) minmax(160px, 0.9fr);
+  }
+
+  .checkin-row > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .checkin-row .btn {
+    min-height: 48px;
+  }
+
+  .checkin-row .cake-pickup-field {
+    justify-self: start;
+  }
+
+  .actual-count-fields label,
+  .gift-field {
+    white-space: nowrap;
+  }
+}
+
 .success-note {
   background: color-mix(in oklab, var(--success), white 88%);
   border: 1px solid color-mix(in oklab, var(--success), white 72%);
