@@ -43,7 +43,7 @@ const isGuestFormOpen = ref(false)
 const isAdvancedSearchOpen = ref(false)
 const qrGuest = ref(null)
 const page = ref(1)
-const pageSize = ref(50)
+const pageSize = ref(20)
 const totalGuests = ref(0)
 const pageCount = computed(() => Math.max(Math.ceil(totalGuests.value / pageSize.value), 1))
 const paginationSummary = computed(() => {
