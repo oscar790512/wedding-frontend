@@ -68,6 +68,9 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --git-branch=staging --token=${{ secrets.VERCEL_TOKEN }}
         env:
@@ -84,7 +87,19 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy Project Artifacts to Vercel Staging
-        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        id: deploy
+        run: |
+          deployment_url="$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | tail -n 1)"
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Prepare integration test environment
+        run: |
+          api_base_url="$(node -e "const fs = require('fs'); const line = fs.readFileSync('.vercel/.env.preview.local', 'utf8').split(/\r?\n/).find((item) => item.startsWith('VITE_API_BASE_URL=')); if (!line) process.exit(1); console.log(line.slice(line.indexOf('=') + 1).replace(/^['\"]|['\"]$/g, ''))")"
+          echo "INTEGRATION_FRONTEND_URL=${{ steps.deploy.outputs.url }}" >> "$GITHUB_ENV"
+          echo "INTEGRATION_API_BASE_URL=$api_base_url" >> "$GITHUB_ENV"
+
+      - name: Run frontend/backend integration tests
+        run: npm run test:integration
