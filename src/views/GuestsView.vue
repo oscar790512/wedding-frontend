@@ -34,6 +34,7 @@ const shippingFilter = ref('all')
 const categoryFilter = ref('all')
 const tableFilter = ref('all')
 const dietFilter = ref('all')
+const sortOrder = ref('asc')
 const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
@@ -157,6 +158,8 @@ async function loadGuests() {
             : dietFilter.value === 'without'
               ? false
               : undefined,
+        sort: 'created_at',
+        order: sortOrder.value,
         page: page.value,
         page_size: pageSize.value,
       }),
@@ -492,6 +495,7 @@ watch(
   [statusFilter, shippingFilter, categoryFilter, tableFilter, dietFilter],
   resetPaginationAndLoadGuests,
 )
+watch(sortOrder, resetPaginationAndLoadGuests)
 
 watch(
   () => form.value.status,
@@ -890,6 +894,14 @@ onMounted(loadGuests)
                   <option value="all">全部</option>
                   <option value="with">有備註</option>
                   <option value="without">無備註</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="guest-sort-order">建立時間排序</label>
+                <select id="guest-sort-order" v-model="sortOrder" class="field-control">
+                  <option value="asc">舊到新</option>
+                  <option value="desc">新到舊</option>
                 </select>
               </div>
             </div>

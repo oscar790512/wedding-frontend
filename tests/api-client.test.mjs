@@ -198,6 +198,8 @@ describe('apiRequest', () => {
     const page = await api.fetchGuestPage({
       q: 'Oscar',
       status: 'attend',
+      sort: 'created_at',
+      order: 'desc',
       page: 1,
       page_size: 1,
     })
@@ -215,7 +217,7 @@ describe('apiRequest', () => {
     ])
     assert.equal(
       calls[0].url,
-      'http://localhost:8000/api/admin/guests?q=Oscar&status=attend&page=1&page_size=1',
+      'http://localhost:8000/api/admin/guests?q=Oscar&status=attend&sort=created_at&order=desc&page=1&page_size=1',
     )
   })
 

@@ -1153,7 +1153,7 @@ textarea.field-control {
 .guest-filter-row {
   display: none;
   gap: var(--space-4);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .guest-filter-row.is-open {

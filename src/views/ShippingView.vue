@@ -18,6 +18,7 @@ const CATEGORY_OPTIONS = [
 const guests = ref([])
 const searchQuery = ref('')
 const shippingFilter = ref('all')
+const sortOrder = ref('asc')
 const isLoading = ref(false)
 const isSaving = ref(false)
 const errorMessage = ref('')
@@ -203,6 +204,8 @@ async function loadGuests() {
     const guestPage = await fetchGuestPage({
       q: searchQuery.value.trim(),
       shipping: shippingFilter.value === 'all' ? undefined : shippingFilter.value,
+      sort: 'created_at',
+      order: sortOrder.value,
       page: page.value,
       page_size: pageSize.value,
     })
@@ -327,6 +330,7 @@ watch(searchQuery, () => {
 })
 
 watch(shippingFilter, resetPaginationAndLoadGuests)
+watch(sortOrder, resetPaginationAndLoadGuests)
 
 watch(
   () => form.value.status,
@@ -634,6 +638,14 @@ onMounted(loadGuests)
                     {{ filter[1] }}
                   </button>
                 </div>
+              </div>
+
+              <div class="field">
+                <label for="shipping-sort-order">建立時間排序</label>
+                <select id="shipping-sort-order" v-model="sortOrder" class="field-control">
+                  <option value="asc">舊到新</option>
+                  <option value="desc">新到舊</option>
+                </select>
               </div>
             </div>
           </div>

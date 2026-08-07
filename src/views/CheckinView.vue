@@ -36,6 +36,7 @@ const pendingNotesTimers = new Map()
 const giftInputVersions = new Map()
 const giftStatusClearTimers = new Map()
 const attendingOnly = ref(true)
+const sortOrder = ref('asc')
 const selectedTable = ref(null)
 const tableSettings = ref([])
 const actualCountDrafts = ref({})
@@ -242,6 +243,8 @@ async function loadGuests() {
       fetchGuestPage({
         q: searchQuery.value.trim(),
         status: attendingOnly.value ? 'attend' : undefined,
+        sort: 'created_at',
+        order: sortOrder.value,
         page: page.value,
         page_size: pageSize.value,
       }),
@@ -281,6 +284,8 @@ async function fetchAllCheckinExportGuests() {
   const firstPage = await fetchGuestPage({
     q: searchQuery.value.trim(),
     status: 'attend',
+    sort: 'created_at',
+    order: sortOrder.value,
     page: 1,
     page_size: 100,
   })
@@ -291,6 +296,8 @@ async function fetchAllCheckinExportGuests() {
     const guestPage = await fetchGuestPage({
       q: searchQuery.value.trim(),
       status: 'attend',
+      sort: 'created_at',
+      order: sortOrder.value,
       page: nextPage,
       page_size: 100,
     })
@@ -835,6 +842,7 @@ watch(searchQuery, () => {
 })
 
 watch(attendingOnly, resetPaginationAndLoadGuests)
+watch(sortOrder, resetPaginationAndLoadGuests)
 
 onMounted(async () => {
   await loadGuests()
@@ -1202,11 +1210,19 @@ onBeforeUnmount(() => {
         <div class="toolbar">
           <input
             v-model="searchQuery"
-          class="field-control checkin-search"
+            class="field-control checkin-search"
             type="search"
             placeholder="搜尋姓名或電話末三碼"
             autocomplete="off"
           />
+          <select
+            v-model="sortOrder"
+            class="field-control checkin-sort"
+            aria-label="建立時間排序"
+          >
+            <option value="asc">建立時間：舊到新</option>
+            <option value="desc">建立時間：新到舊</option>
+          </select>
         </div>
       </div>
 
