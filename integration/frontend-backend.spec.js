@@ -13,6 +13,20 @@ function apiUrl(path) {
   return new URL(path, base).toString()
 }
 
+function normalizePath(pathname) {
+  return pathname.replace(/\/+/g, '/')
+}
+
+function isExpectedSettingsResponse(response, expectedApiBase) {
+  const actualUrl = new URL(response.url())
+
+  return (
+    actualUrl.origin === expectedApiBase.origin
+    && normalizePath(actualUrl.pathname) === '/api/rsvp/settings'
+    && response.ok()
+  )
+}
+
 test('backend health endpoint is reachable', async ({ request }) => {
   const response = await request.get(apiUrl('/health'))
   const body = await response.json()
@@ -34,15 +48,25 @@ test('public RSVP settings API returns the frontend contract shape', async ({ re
 test('deployed frontend can call the configured backend API', async ({ page }) => {
   const frontend = requiredUrl('INTEGRATION_FRONTEND_URL', frontendUrl)
   const apiBase = requiredUrl('INTEGRATION_API_BASE_URL', apiBaseUrl)
-  const settingsPath = new URL('/api/rsvp/settings', apiBase).toString()
+  const apiRequests = []
+
+  page.on('request', (request) => {
+    if (request.url().includes('/api/')) {
+      apiRequests.push(request.url())
+    }
+  })
 
   const settingsResponse = page.waitForResponse(
-    (response) => response.url() === settingsPath && response.ok(),
+    (response) => isExpectedSettingsResponse(response, apiBase),
   )
 
   await page.goto(new URL('/rsvp', frontend).toString())
   await page.waitForLoadState('load')
-  await settingsResponse
+  await settingsResponse.catch((error) => {
+    throw new Error(
+      `${error.message}\nObserved API requests:\n${apiRequests.join('\n') || '(none)'}`,
+    )
+  })
 
   await expect(page.getByRole('heading', { name: '祺元與姵妤' })).toBeVisible()
 })
