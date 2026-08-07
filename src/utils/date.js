@@ -4,10 +4,11 @@ export function formatWeddingDate(value) {
   const [year, month, day] = value.split('-').map(Number)
   if (!year || !month || !day) return ''
 
-  return new Intl.DateTimeFormat('zh-TW', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const [weekday] = new Intl.DateTimeFormat('zh-TW', {
     weekday: 'long',
-  }).format(new Date(year, month - 1, day))
+  }).formatToParts(new Date(year, month - 1, day))
+    .filter((part) => part.type === 'weekday')
+    .map((part) => part.value)
+
+  return `${year}年${month}月${day}日 ${weekday}`
 }
