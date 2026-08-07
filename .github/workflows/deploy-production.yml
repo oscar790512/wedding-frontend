@@ -1,9 +1,9 @@
-name: Deploy Staging to Vercel
+name: Deploy Production to Vercel
 
 on:
   push:
     branches:
-      - staging
+      - main
 
 jobs:
   unit-test:
@@ -47,10 +47,10 @@ jobs:
       - name: Run Playwright E2E tests
         run: npm run test:e2e
 
-  deploy-staging:
+  deploy-production:
     needs: [unit-test, e2e-test]
     runs-on: ubuntu-latest
-    environment: staging
+    environment: production
 
     steps:
       - name: Checkout repository
@@ -69,22 +69,19 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --git-branch=staging --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Verify Vercel staging API environment variable
-        run: test -s .vercel/.env.preview.local && grep -q '^VITE_API_BASE_URL=' .vercel/.env.preview.local
 
       - name: Build Project Artifacts
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Deploy Project Artifacts to Vercel Staging
-        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy Project Artifacts to Vercel Production
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
