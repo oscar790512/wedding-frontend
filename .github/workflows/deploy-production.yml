@@ -86,7 +86,9 @@ jobs:
       - name: Deploy Project Artifacts to Vercel Production
         id: deploy
         run: |
-          deployment_url="$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} | tail -n 1)"
+          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} | tee vercel-deploy-output.txt
+          deployment_url="$(grep -Eo 'https://[^[:space:]]+' vercel-deploy-output.txt | grep -v '^https://vercel.com/' | tail -n 1)"
+          test -n "$deployment_url"
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

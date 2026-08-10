@@ -50,6 +50,9 @@ test('deployed frontend can call the configured backend API', async ({ page }) =
   const apiBase = requiredUrl('INTEGRATION_API_BASE_URL', apiBaseUrl)
   const apiRequests = []
 
+  expect(frontend.hostname, 'INTEGRATION_FRONTEND_URL must be the deployed app URL, not Vercel dashboard or inspect URL')
+    .not.toBe('vercel.com')
+
   page.on('request', (request) => {
     if (request.url().includes('/api/')) {
       apiRequests.push(request.url())
