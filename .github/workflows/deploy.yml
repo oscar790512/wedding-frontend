@@ -100,8 +100,13 @@ jobs:
       - name: Prepare integration test environment
         run: |
           api_base_url="$(node -e "const fs = require('fs'); const line = fs.readFileSync('.vercel/.env.preview.local', 'utf8').split(/\r?\n/).find((item) => item.startsWith('VITE_API_BASE_URL=')); if (!line) process.exit(1); console.log(line.slice(line.indexOf('=') + 1).replace(/^['\"]|['\"]$/g, ''))")"
+          vercel_bypass_secret="$(node -e "const fs = require('fs'); const line = fs.readFileSync('.vercel/.env.preview.local', 'utf8').split(/\r?\n/).find((item) => item.startsWith('VERCEL_AUTOMATION_BYPASS_SECRET=')); if (line) console.log(line.slice(line.indexOf('=') + 1).replace(/^['\"]|['\"]$/g, ''))")"
           echo "INTEGRATION_FRONTEND_URL=${{ steps.deploy.outputs.url }}" >> "$GITHUB_ENV"
           echo "INTEGRATION_API_BASE_URL=$api_base_url" >> "$GITHUB_ENV"
+          if [ -n "$vercel_bypass_secret" ]; then
+            echo "::add-mask::$vercel_bypass_secret"
+            echo "INTEGRATION_VERCEL_BYPASS_SECRET=$vercel_bypass_secret" >> "$GITHUB_ENV"
+          fi
 
       - name: Run frontend/backend integration tests
         run: npm run test:integration

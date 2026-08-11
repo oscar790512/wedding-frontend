@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const frontendUrl = process.env.INTEGRATION_FRONTEND_URL
 const apiBaseUrl = process.env.INTEGRATION_API_BASE_URL
+const vercelBypassSecret = process.env.INTEGRATION_VERCEL_BYPASS_SECRET
 
 function requiredUrl(name, value) {
   expect(value, `${name} must be set for integration tests`).toBeTruthy()
@@ -53,6 +54,13 @@ test('deployed frontend can call the configured backend API', async ({ page }) =
   expect(frontend.hostname, 'INTEGRATION_FRONTEND_URL must be the deployed app URL, not Vercel dashboard or inspect URL')
     .not.toBe('vercel.com')
 
+  if (vercelBypassSecret) {
+    await page.setExtraHTTPHeaders({
+      'x-vercel-protection-bypass': vercelBypassSecret,
+      'x-vercel-set-bypass-cookie': 'true',
+    })
+  }
+
   page.on('request', (request) => {
     if (request.url().includes('/api/')) {
       apiRequests.push(request.url())
@@ -63,7 +71,14 @@ test('deployed frontend can call the configured backend API', async ({ page }) =
     (response) => isExpectedSettingsResponse(response, apiBase),
   )
 
-  await page.goto(new URL('/rsvp', frontend).toString())
+  const navigationResponse = await page.goto(new URL('/rsvp', frontend).toString())
+  const currentUrl = new URL(page.url())
+
+  expect(
+    currentUrl.hostname,
+    `Frontend redirected to Vercel deployment protection from ${navigationResponse?.url() || frontend.toString()}. Configure VERCEL_AUTOMATION_BYPASS_SECRET in the Vercel project and expose it to the integration test environment.`,
+  ).not.toBe('vercel.com')
+
   await page.waitForLoadState('load')
   await settingsResponse.catch((error) => {
     throw new Error(
