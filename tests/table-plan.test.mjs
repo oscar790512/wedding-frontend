@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
-  buildFloorTableRows,
+  buildFloorTableColumns,
   canAssignGuestToTable,
   chairStyle,
   guestAttendeeCount,
@@ -73,8 +73,8 @@ describe('table planning helpers', () => {
     assert.equal(canAssignGuestToTable(guest, table), true)
   })
 
-  it('builds floor table rows with the main table excluded from automatic rows', () => {
-    const rows = buildFloorTableRows(
+  it('builds floor table columns from explicit column counts', () => {
+    const columns = buildFloorTableColumns(
       [
         { name: '主桌' },
         { name: '第 1 桌' },
@@ -87,46 +87,47 @@ describe('table planning helpers', () => {
         { name: '第 8 桌' },
       ],
       '主桌',
+      [2, 2, 2, 2],
     )
 
-    assert.deepEqual(rows, [
+    assert.deepEqual(columns, [
       {
-        id: 'table-row-0',
-        variant: 'standard',
-        leftTables: [{ name: '第 1 桌' }, { name: '第 2 桌' }],
-        centerTables: [],
-        rightTables: [{ name: '第 3 桌' }, { name: '第 4 桌' }],
+        id: 'table-column-0',
+        tables: [{ name: '第 1 桌' }, { name: '第 2 桌' }],
       },
       {
-        id: 'table-row-1',
-        variant: 'standard',
-        leftTables: [{ name: '第 5 桌' }, { name: '第 6 桌' }],
-        centerTables: [],
-        rightTables: [{ name: '第 7 桌' }, { name: '第 8 桌' }],
+        id: 'table-column-1',
+        tables: [{ name: '第 3 桌' }, { name: '第 4 桌' }],
+      },
+      {
+        id: 'table-column-2',
+        tables: [{ name: '第 5 桌' }, { name: '第 6 桌' }],
+      },
+      {
+        id: 'table-column-3',
+        tables: [{ name: '第 7 桌' }, { name: '第 8 桌' }],
       },
     ])
   })
 
-  it('leaves the final center aisle clear for a 24-table venue map', () => {
+  it('appends overflow tables to the fourth floor column', () => {
     const tables = [{ name: '主桌' }]
 
     for (let index = 1; index <= 23; index += 1) {
       tables.push({ name: `第 ${index} 桌` })
     }
 
-    const rows = buildFloorTableRows(tables, '主桌')
+    const columns = buildFloorTableColumns(tables, '主桌', [6, 6, 5, 4])
 
-    assert.equal(rows.length, 6)
-    assert.deepEqual(rows[5], {
-      id: 'table-row-5',
-      variant: 'entry',
-      leftTables: [{ name: '第 21 桌' }, { name: '第 22 桌' }],
-      centerTables: [],
-      rightTables: [{ name: '第 23 桌' }],
-    })
+    assert.equal(columns.length, 4)
+    assert.deepEqual(
+      columns.map((column) => column.tables.length),
+      [6, 6, 5, 6],
+    )
+    assert.deepEqual(columns[3].tables.at(-1), { name: '第 23 桌' })
     assert.equal(
-      rows.reduce(
-        (count, row) => count + row.leftTables.length + row.centerTables.length + row.rightTables.length,
+      columns.reduce(
+        (count, column) => count + column.tables.length,
         0,
       ),
       23,

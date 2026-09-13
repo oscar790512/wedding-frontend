@@ -18,8 +18,14 @@ import {
   parseCheckinQrToken,
   phoneLastThreeDigits,
 } from '../utils/checkin'
-import { buildFloorTableRows } from '../utils/tablePlan'
+import {
+  DEFAULT_FLOOR_COLUMN_COUNTS,
+  buildFloorTableColumns,
+  buildFloorTableRows,
+  normalizeFloorColumnCounts,
+} from '../utils/tablePlan'
 
+const TABLE_LAYOUT_STORAGE_KEY = 'wedding.floorColumnCounts'
 const route = useRoute()
 const router = useRouter()
 const guests = ref([])
@@ -43,6 +49,7 @@ const attendingOnly = ref(true)
 const sortOrder = ref('asc')
 const selectedTableName = ref(null)
 const tableSettings = ref([])
+const floorColumnCounts = ref(loadFloorColumnCounts())
 const actualCountDrafts = ref({})
 const giftDrafts = ref({})
 const giftSaveStates = ref({})
@@ -143,6 +150,19 @@ const selectedTable = computed(() =>
 const floorTableRows = computed(() => {
   return buildFloorTableRows(tableSummary.value, mainTable.value?.name)
 })
+
+const floorTableColumns = computed(() =>
+  buildFloorTableColumns(tableSummary.value, mainTable.value?.name, floorColumnCounts.value),
+)
+
+function loadFloorColumnCounts() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TABLE_LAYOUT_STORAGE_KEY) || 'null')
+    return normalizeFloorColumnCounts(saved?.length ? saved : DEFAULT_FLOOR_COLUMN_COUNTS)
+  } catch {
+    return [...DEFAULT_FLOOR_COLUMN_COUNTS]
+  }
+}
 
 function checkinChairClass(table, chair) {
   return {
@@ -978,6 +998,7 @@ onBeforeUnmount(() => {
       <VenueFloorPlan
         v-else
         :main-table="mainTable"
+        :floor-table-columns="floorTableColumns"
         :floor-table-rows="floorTableRows"
         :get-chair-class="checkinChairClass"
         :get-table-metric="checkinTableMetric"

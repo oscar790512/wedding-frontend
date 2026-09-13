@@ -12,19 +12,24 @@ import {
 import AdminLayout from '../components/AdminLayout.vue'
 import VenueFloorPlan from '../components/VenueFloorPlan.vue'
 import {
+  DEFAULT_FLOOR_COLUMN_COUNTS,
+  buildFloorTableColumns,
   buildFloorTableRows,
   canAssignGuestToTable,
   guestAttendeeCount,
+  normalizeFloorColumnCounts,
   tableAttendeeCount,
   tableCapacityErrorMessage,
 } from '../utils/tablePlan'
 
+const TABLE_LAYOUT_STORAGE_KEY = 'wedding.floorColumnCounts'
 const guests = ref([])
 const tableSettings = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const newTableCount = ref(1)
 const defaultCapacity = ref(12)
+const floorColumnCounts = ref(loadFloorColumnCounts())
 const selectedGuestByTable = ref({})
 const guestSearchByTable = ref({})
 const assigningGuestByTable = ref({})
@@ -75,6 +80,26 @@ const mainTable = computed(() =>
 const floorTableRows = computed(() =>
   buildFloorTableRows(tables.value, mainTable.value?.name),
 )
+
+const floorTableColumns = computed(() =>
+  buildFloorTableColumns(tables.value, mainTable.value?.name, floorColumnCounts.value),
+)
+
+const floorTableCount = computed(() =>
+  mainTable.value ? Math.max(tables.value.length - 1, 0) : tables.value.length,
+)
+
+const floorColumnTotal = computed(() =>
+  floorColumnCounts.value.reduce((sum, count) => sum + Number(count || 0), 0),
+)
+
+const floorLayoutMessage = computed(() => {
+  if (floorColumnTotal.value === floorTableCount.value) return ''
+  if (floorColumnTotal.value < floorTableCount.value) {
+    return `四欄目前設定 ${floorColumnTotal.value} 桌，尚有 ${floorTableCount.value - floorColumnTotal.value} 桌會先接在第 4 欄。`
+  }
+  return `四欄目前設定 ${floorColumnTotal.value} 桌，已超過一般桌數 ${floorTableCount.value} 桌，多出的欄位位置會留空。`
+})
 
 const selectedTable = computed(() =>
   tables.value.find((table) => table.name === selectedTableName.value) || null,
@@ -159,6 +184,22 @@ function handleTableNameInput(tableName, value) {
 
 function isLockedTableName(tableName) {
   return tableName === '主桌'
+}
+
+function loadFloorColumnCounts() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TABLE_LAYOUT_STORAGE_KEY) || 'null')
+    return normalizeFloorColumnCounts(saved?.length ? saved : DEFAULT_FLOOR_COLUMN_COUNTS)
+  } catch {
+    return [...DEFAULT_FLOOR_COLUMN_COUNTS]
+  }
+}
+
+function updateFloorColumnCount(index, value) {
+  const nextCounts = normalizeFloorColumnCounts(floorColumnCounts.value)
+  nextCounts[index] = Math.max(Math.trunc(Number(value || 0) || 0), 0)
+  floorColumnCounts.value = nextCounts
+  localStorage.setItem(TABLE_LAYOUT_STORAGE_KEY, JSON.stringify(nextCounts))
 }
 
 function nextTableNumber() {
@@ -482,8 +523,26 @@ onMounted(loadPlanningData)
           <span class="badge badge-warn">{{ tables.length }} 個桌次</span>
         </div>
 
+        <div class="floor-layout-controls" aria-label="桌位欄位設定">
+          <label
+            v-for="(_, index) in floorColumnCounts"
+            :key="`floor-column-count-${index}`"
+          >
+            第 {{ index + 1 }} 欄桌數
+            <input
+              class="field-control"
+              type="number"
+              min="0"
+              :value="floorColumnCounts[index]"
+              @change="updateFloorColumnCount(index, $event.target.value)"
+            />
+          </label>
+        </div>
+        <p v-if="floorLayoutMessage" class="layout-note">{{ floorLayoutMessage }}</p>
+
         <VenueFloorPlan
           :main-table="mainTable"
+          :floor-table-columns="floorTableColumns"
           :floor-table-rows="floorTableRows"
           :get-chair-class="planningChairClass"
           :get-table-metric="planningTableMetric"

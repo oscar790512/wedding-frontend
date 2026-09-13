@@ -32,28 +32,59 @@ export function tableCapacityErrorMessage(guest, table) {
   return `${table.name} 剩餘 ${remainingSeats(table, guest.id)} 位，無法加入 ${guest.name}（${requiredSeats} 位）。`
 }
 
-export function buildFloorTableRows(tables, mainTableName = '') {
+export const DEFAULT_FLOOR_COLUMN_COUNTS = [6, 6, 5, 6]
+
+export function buildFloorTableColumns(
+  tables,
+  mainTableName = '',
+  columnCounts = DEFAULT_FLOOR_COLUMN_COUNTS,
+) {
   const floorTables = tables.filter((table) => table.name !== mainTableName)
-  const rows = []
+  const normalizedCounts = normalizeFloorColumnCounts(columnCounts)
+  const columns = normalizedCounts.map((count, index) => ({
+    id: `table-column-${index}`,
+    tables: [],
+  }))
   let cursor = 0
-  let rowIndex = 0
 
-  while (cursor < floorTables.length) {
-    const rowSize = rowIndex === 5 ? 3 : 4
-    const rowTables = floorTables.slice(cursor, cursor + rowSize)
+  for (let index = 0; index < columns.length; index += 1) {
+    const count = normalizedCounts[index]
+    columns[index].tables = floorTables.slice(cursor, cursor + count)
+    cursor += count
+  }
 
+  if (cursor < floorTables.length) {
+    columns[columns.length - 1].tables = [
+      ...columns[columns.length - 1].tables,
+      ...floorTables.slice(cursor),
+    ]
+  }
+
+  return columns
+}
+
+export function buildFloorTableRows(tables, mainTableName = '') {
+  const columns = buildFloorTableColumns(tables, mainTableName)
+  const maxRows = Math.max(...columns.map((column) => column.tables.length), 0)
+  const rows = []
+
+  for (let rowIndex = 0; rowIndex < maxRows; rowIndex += 1) {
     rows.push({
       id: `table-row-${rowIndex}`,
-      variant: rowIndex === 5 ? 'entry' : 'standard',
-      leftTables: rowTables.slice(0, 2),
+      variant: rowIndex === maxRows - 1 ? 'entry' : 'standard',
+      leftTables: [columns[0].tables[rowIndex], columns[1].tables[rowIndex]].filter(Boolean),
       centerTables: [],
-      rightTables: rowTables.slice(2, 4),
+      rightTables: [columns[2].tables[rowIndex], columns[3].tables[rowIndex]].filter(Boolean),
     })
-    cursor += rowSize
-    rowIndex += 1
   }
 
   return rows
+}
+
+export function normalizeFloorColumnCounts(columnCounts) {
+  return Array.from({ length: 4 }, (_, index) =>
+    Math.max(Math.trunc(Number(columnCounts?.[index] ?? 0) || 0), 0),
+  )
 }
 
 export function chairStyle(index, total) {
