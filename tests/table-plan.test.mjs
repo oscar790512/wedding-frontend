@@ -83,6 +83,8 @@ describe('table planning helpers', () => {
         { name: '第 4 桌' },
         { name: '第 5 桌' },
         { name: '第 6 桌' },
+        { name: '第 7 桌' },
+        { name: '第 8 桌' },
       ],
       '主桌',
     )
@@ -90,17 +92,45 @@ describe('table planning helpers', () => {
     assert.deepEqual(rows, [
       {
         id: 'table-row-0',
-        variant: 'two',
-        leftTables: [{ name: '第 1 桌' }],
-        rightTables: [{ name: '第 2 桌' }],
+        variant: 'standard',
+        leftTables: [{ name: '第 1 桌' }, { name: '第 2 桌' }],
+        centerTables: [],
+        rightTables: [{ name: '第 3 桌' }, { name: '第 4 桌' }],
       },
       {
         id: 'table-row-1',
-        variant: 'four',
-        leftTables: [{ name: '第 3 桌' }, { name: '第 4 桌' }],
-        rightTables: [{ name: '第 5 桌' }, { name: '第 6 桌' }],
+        variant: 'standard',
+        leftTables: [{ name: '第 5 桌' }, { name: '第 6 桌' }],
+        centerTables: [],
+        rightTables: [{ name: '第 7 桌' }, { name: '第 8 桌' }],
       },
     ])
+  })
+
+  it('leaves the final center aisle clear for a 24-table venue map', () => {
+    const tables = [{ name: '主桌' }]
+
+    for (let index = 1; index <= 23; index += 1) {
+      tables.push({ name: `第 ${index} 桌` })
+    }
+
+    const rows = buildFloorTableRows(tables, '主桌')
+
+    assert.equal(rows.length, 6)
+    assert.deepEqual(rows[5], {
+      id: 'table-row-5',
+      variant: 'entry',
+      leftTables: [{ name: '第 21 桌' }, { name: '第 22 桌' }],
+      centerTables: [],
+      rightTables: [{ name: '第 23 桌' }],
+    })
+    assert.equal(
+      rows.reduce(
+        (count, row) => count + row.leftTables.length + row.centerTables.length + row.rightTables.length,
+        0,
+      ),
+      23,
+    )
   })
 
   it('positions chairs evenly around a round table', () => {

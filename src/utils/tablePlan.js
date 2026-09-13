@@ -39,17 +39,15 @@ export function buildFloorTableRows(tables, mainTableName = '') {
   let rowIndex = 0
 
   while (cursor < floorTables.length) {
-    const rowSize = rowIndex % 2 === 0 ? 2 : 4
+    const rowSize = rowIndex === 5 ? 3 : 4
     const rowTables = floorTables.slice(cursor, cursor + rowSize)
-    const leftCount = rowSize === 2
-      ? Math.ceil(rowTables.length / 2)
-      : Math.min(rowTables.length, 2)
 
     rows.push({
       id: `table-row-${rowIndex}`,
-      variant: rowSize === 2 ? 'two' : 'four',
-      leftTables: rowTables.slice(0, leftCount),
-      rightTables: rowTables.slice(leftCount),
+      variant: rowIndex === 5 ? 'entry' : 'standard',
+      leftTables: rowTables.slice(0, 2),
+      centerTables: [],
+      rightTables: rowTables.slice(2, 4),
     })
     cursor += rowSize
     rowIndex += 1

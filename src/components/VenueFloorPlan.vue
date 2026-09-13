@@ -91,6 +91,30 @@ function selectTable(table) {
             </button>
           </div>
 
+          <div class="venue-table-side venue-table-side--center">
+            <button
+              v-for="table in row.centerTables"
+              :key="table.name"
+              class="round-table"
+              :class="getTableClass(table)"
+              type="button"
+              @click="selectTable(table)"
+            >
+              <span
+                v-for="chair in table.capacity"
+                :key="`${table.name}-chair-${chair}`"
+                class="round-table__chair"
+                :class="getChairClass(table, chair)"
+                :style="chairStyle(chair - 1, table.capacity)"
+                aria-hidden="true"
+              ></span>
+              <span class="round-table__center">
+                <strong>{{ table.name }}</strong>
+                <span>{{ getTableMetric(table) }}</span>
+              </span>
+            </button>
+          </div>
+
           <div class="venue-table-side venue-table-side--right">
             <button
               v-for="table in row.rightTables"
