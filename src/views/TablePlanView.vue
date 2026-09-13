@@ -13,16 +13,19 @@ import AdminLayout from '../components/AdminLayout.vue'
 import VenueFloorPlan from '../components/VenueFloorPlan.vue'
 import {
   DEFAULT_FLOOR_COLUMN_COUNTS,
-  buildFloorTableColumns,
+  buildIndependentFloorTableColumns,
   buildFloorTableRows,
   canAssignGuestToTable,
   guestAttendeeCount,
   normalizeFloorColumnCounts,
+  normalizeFloorColumnLayout,
+  reconcileFloorColumnLayout,
   tableAttendeeCount,
   tableCapacityErrorMessage,
 } from '../utils/tablePlan'
 
 const TABLE_LAYOUT_STORAGE_KEY = 'wedding.floorColumnCounts'
+const TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY = 'wedding.floorColumnAssignments'
 const guests = ref([])
 const tableSettings = ref([])
 const isLoading = ref(false)
@@ -30,6 +33,7 @@ const errorMessage = ref('')
 const newTableCount = ref(1)
 const defaultCapacity = ref(12)
 const floorColumnCounts = ref(loadFloorColumnCounts())
+const floorColumnLayout = ref(loadFloorColumnLayout())
 const selectedGuestByTable = ref({})
 const guestSearchByTable = ref({})
 const assigningGuestByTable = ref({})
@@ -82,7 +86,7 @@ const floorTableRows = computed(() =>
 )
 
 const floorTableColumns = computed(() =>
-  buildFloorTableColumns(tables.value, mainTable.value?.name, floorColumnCounts.value),
+  buildIndependentFloorTableColumns(tables.value, mainTable.value?.name, floorColumnLayout.value),
 )
 
 const floorTableCount = computed(() =>
@@ -98,7 +102,7 @@ const floorLayoutMessage = computed(() => {
   if (floorColumnTotal.value < floorTableCount.value) {
     return `四欄目前設定 ${floorColumnTotal.value} 桌，尚有 ${floorTableCount.value - floorColumnTotal.value} 桌會先接在第 4 欄。`
   }
-  return `四欄目前設定 ${floorColumnTotal.value} 桌，已超過一般桌數 ${floorTableCount.value} 桌，多出的欄位位置會留空。`
+  return `四欄目前設定 ${floorColumnTotal.value} 個位置，已超過一般桌數 ${floorTableCount.value} 桌，多出的欄位位置會留空。`
 })
 
 const selectedTable = computed(() =>
@@ -123,6 +127,7 @@ async function loadPlanningData() {
     tableNameDrafts.value = Object.fromEntries(
       settingData.map((setting) => [setting.table_name, setting.table_name]),
     )
+    syncFloorColumnLayout()
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -195,11 +200,53 @@ function loadFloorColumnCounts() {
   }
 }
 
+function loadFloorColumnLayout() {
+  try {
+    return normalizeFloorColumnLayout(
+      JSON.parse(localStorage.getItem(TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY) || 'null'),
+    )
+  } catch {
+    return normalizeFloorColumnLayout(null)
+  }
+}
+
+function saveFloorColumnLayout(layout) {
+  floorColumnLayout.value = layout
+  localStorage.setItem(TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY, JSON.stringify(layout))
+}
+
+function syncFloorColumnLayout() {
+  saveFloorColumnLayout(
+    reconcileFloorColumnLayout(
+      tables.value,
+      mainTable.value?.name,
+      floorColumnLayout.value,
+      floorColumnCounts.value,
+    ),
+  )
+}
+
 function updateFloorColumnCount(index, value) {
   const nextCounts = normalizeFloorColumnCounts(floorColumnCounts.value)
-  nextCounts[index] = Math.max(Math.trunc(Number(value || 0) || 0), 0)
+  const nextLayout = normalizeFloorColumnLayout(floorColumnLayout.value)
+  const nextCount = Math.max(Math.trunc(Number(value || 0) || 0), 0)
+
+  nextLayout[index] = nextLayout[index].slice(0, nextCount)
+  while (nextLayout[index].length < nextCount) {
+    nextLayout[index].push(null)
+  }
+
+  nextCounts[index] = nextCount
   floorColumnCounts.value = nextCounts
   localStorage.setItem(TABLE_LAYOUT_STORAGE_KEY, JSON.stringify(nextCounts))
+  saveFloorColumnLayout(
+    reconcileFloorColumnLayout(
+      tables.value,
+      mainTable.value?.name,
+      nextLayout,
+      nextCounts,
+    ),
+  )
 }
 
 function nextTableNumber() {

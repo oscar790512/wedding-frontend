@@ -1557,6 +1557,14 @@ textarea.field-control {
   --table-y-offset: -36px;
 }
 
+.round-table--empty-slot {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  cursor: default;
+  pointer-events: none;
+}
+
 .round-table:hover {
   border-color: var(--accent);
   box-shadow: 0 20px 48px rgba(49, 40, 36, 0.18);

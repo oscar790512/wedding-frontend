@@ -74,30 +74,40 @@ function selectTable(table) {
             { 'venue-table-column--right': columnIndex >= 2 },
           ]"
         >
-          <button
+          <template
             v-for="(table, tableIndex) in column.tables"
-            :key="table.name"
-            class="round-table"
-            :class="[
-              getTableClass(table),
-              { 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 },
-            ]"
-            type="button"
-            @click="selectTable(table)"
+            :key="table.name || table.id || `empty-${columnIndex}-${tableIndex}`"
           >
-            <span
-              v-for="chair in table.capacity"
-              :key="`${table.name}-chair-${chair}`"
-              class="round-table__chair"
-              :class="getChairClass(table, chair)"
-              :style="chairStyle(chair - 1, table.capacity)"
+            <button
+              v-if="!table.isEmptySlot"
+              class="round-table"
+              :class="[
+                getTableClass(table),
+                { 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 },
+              ]"
+              type="button"
+              @click="selectTable(table)"
+            >
+              <span
+                v-for="chair in table.capacity"
+                :key="`${table.name}-chair-${chair}`"
+                class="round-table__chair"
+                :class="getChairClass(table, chair)"
+                :style="chairStyle(chair - 1, table.capacity)"
+                aria-hidden="true"
+              ></span>
+              <span class="round-table__center">
+                <strong>{{ table.name }}</strong>
+                <span>{{ getTableMetric(table) }}</span>
+              </span>
+            </button>
+            <div
+              v-else
+              class="round-table round-table--empty-slot"
+              :class="{ 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 }"
               aria-hidden="true"
-            ></span>
-            <span class="round-table__center">
-              <strong>{{ table.name }}</strong>
-              <span>{{ getTableMetric(table) }}</span>
-            </span>
-          </button>
+            ></div>
+          </template>
         </div>
       </div>
 

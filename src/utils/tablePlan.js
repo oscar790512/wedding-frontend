@@ -33,6 +33,7 @@ export function tableCapacityErrorMessage(guest, table) {
 }
 
 export const DEFAULT_FLOOR_COLUMN_COUNTS = [6, 6, 5, 6]
+export const EMPTY_FLOOR_SLOT = Object.freeze({ isEmptySlot: true })
 
 export function buildFloorTableColumns(
   tables,
@@ -63,6 +64,90 @@ export function buildFloorTableColumns(
   return columns
 }
 
+export function buildIndependentFloorTableColumns(
+  tables,
+  mainTableName = '',
+  floorColumnLayout = null,
+) {
+  const floorTablesByName = new Map(
+    tables
+      .filter((table) => table.name !== mainTableName)
+      .map((table) => [table.name, table]),
+  )
+  const normalizedLayout = normalizeFloorColumnLayout(floorColumnLayout)
+
+  return normalizedLayout.map((column, index) => ({
+    id: `table-column-${index}`,
+    tables: column.map((tableName, tableIndex) =>
+      tableName && floorTablesByName.has(tableName)
+        ? floorTablesByName.get(tableName)
+        : { ...EMPTY_FLOOR_SLOT, id: `empty-${index}-${tableIndex}` },
+    ),
+  }))
+}
+
+export function reconcileFloorColumnLayout(
+  tables,
+  mainTableName = '',
+  savedLayout = null,
+  columnCounts = DEFAULT_FLOOR_COLUMN_COUNTS,
+) {
+  const floorTables = tables.filter((table) => table.name !== mainTableName)
+  const floorTableNames = floorTables.map((table) => table.name)
+  const floorTableNameSet = new Set(floorTableNames)
+  const normalizedCounts = normalizeFloorColumnCounts(columnCounts)
+  const normalizedLayout = normalizeFloorColumnLayout(savedLayout)
+  const usedTableNames = new Set()
+  const unplacedTableNames = []
+
+  const columns = normalizedLayout.map((column, columnIndex) => {
+    const count = normalizedCounts[columnIndex]
+    const nextColumn = []
+
+    for (const tableName of column.slice(0, count)) {
+      if (!tableName) {
+        nextColumn.push(null)
+        continue
+      }
+
+      if (!floorTableNameSet.has(tableName) || usedTableNames.has(tableName)) {
+        nextColumn.push(null)
+        continue
+      }
+
+      usedTableNames.add(tableName)
+      nextColumn.push(tableName)
+    }
+
+    return nextColumn
+  })
+
+  for (const tableName of floorTableNames) {
+    if (!usedTableNames.has(tableName)) {
+      unplacedTableNames.push(tableName)
+    }
+  }
+
+  for (let columnIndex = 0; columnIndex < columns.length; columnIndex += 1) {
+    while (columns[columnIndex].length < normalizedCounts[columnIndex]) {
+      columns[columnIndex].push(null)
+    }
+  }
+
+  for (const tableName of unplacedTableNames) {
+    const emptyColumn = columns.find((column) => column.includes(null))
+
+    if (emptyColumn) {
+      emptyColumn[emptyColumn.indexOf(null)] = tableName
+      continue
+    }
+
+    columns[columns.length - 1].push(tableName)
+  }
+
+  return columns
+}
+
 export function buildFloorTableRows(tables, mainTableName = '') {
   const columns = buildFloorTableColumns(tables, mainTableName)
   const maxRows = Math.max(...columns.map((column) => column.tables.length), 0)
@@ -84,6 +169,14 @@ export function buildFloorTableRows(tables, mainTableName = '') {
 export function normalizeFloorColumnCounts(columnCounts) {
   return Array.from({ length: 4 }, (_, index) =>
     Math.max(Math.trunc(Number(columnCounts?.[index] ?? 0) || 0), 0),
+  )
+}
+
+export function normalizeFloorColumnLayout(floorColumnLayout) {
+  return Array.from({ length: 4 }, (_, index) =>
+    Array.isArray(floorColumnLayout?.[index])
+      ? floorColumnLayout[index].map((tableName) => tableName || null)
+      : [],
   )
 }
 

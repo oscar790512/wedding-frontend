@@ -20,12 +20,15 @@ import {
 } from '../utils/checkin'
 import {
   DEFAULT_FLOOR_COLUMN_COUNTS,
-  buildFloorTableColumns,
+  buildIndependentFloorTableColumns,
   buildFloorTableRows,
   normalizeFloorColumnCounts,
+  normalizeFloorColumnLayout,
+  reconcileFloorColumnLayout,
 } from '../utils/tablePlan'
 
 const TABLE_LAYOUT_STORAGE_KEY = 'wedding.floorColumnCounts'
+const TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY = 'wedding.floorColumnAssignments'
 const route = useRoute()
 const router = useRouter()
 const guests = ref([])
@@ -50,6 +53,7 @@ const sortOrder = ref('asc')
 const selectedTableName = ref(null)
 const tableSettings = ref([])
 const floorColumnCounts = ref(loadFloorColumnCounts())
+const floorColumnLayout = ref(loadFloorColumnLayout())
 const actualCountDrafts = ref({})
 const giftDrafts = ref({})
 const giftSaveStates = ref({})
@@ -152,7 +156,16 @@ const floorTableRows = computed(() => {
 })
 
 const floorTableColumns = computed(() =>
-  buildFloorTableColumns(tableSummary.value, mainTable.value?.name, floorColumnCounts.value),
+  buildIndependentFloorTableColumns(
+    tableSummary.value,
+    mainTable.value?.name,
+    reconcileFloorColumnLayout(
+      tableSummary.value,
+      mainTable.value?.name,
+      floorColumnLayout.value,
+      floorColumnCounts.value,
+    ),
+  ),
 )
 
 function loadFloorColumnCounts() {
@@ -161,6 +174,16 @@ function loadFloorColumnCounts() {
     return normalizeFloorColumnCounts(saved?.length ? saved : DEFAULT_FLOOR_COLUMN_COUNTS)
   } catch {
     return [...DEFAULT_FLOOR_COLUMN_COUNTS]
+  }
+}
+
+function loadFloorColumnLayout() {
+  try {
+    return normalizeFloorColumnLayout(
+      JSON.parse(localStorage.getItem(TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY) || 'null'),
+    )
+  } catch {
+    return normalizeFloorColumnLayout(null)
   }
 }
 

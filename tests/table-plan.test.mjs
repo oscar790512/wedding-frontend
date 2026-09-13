@@ -2,10 +2,12 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  buildIndependentFloorTableColumns,
   buildFloorTableColumns,
   canAssignGuestToTable,
   chairStyle,
   guestAttendeeCount,
+  reconcileFloorColumnLayout,
   remainingSeats,
   tableCapacityErrorMessage,
 } from '../src/utils/tablePlan.js'
@@ -132,6 +134,36 @@ describe('table planning helpers', () => {
       ),
       23,
     )
+  })
+
+  it('keeps each floor column assignment independent when one column grows', () => {
+    const tables = [{ name: '主桌' }]
+
+    for (let index = 1; index <= 24; index += 1) {
+      tables.push({ name: `第 ${index} 桌` })
+    }
+
+    const existingLayout = [
+      ['第 1 桌', '第 2 桌', '第 3 桌', '第 4 桌', '第 5 桌', '第 6 桌'],
+      ['第 7 桌', '第 8 桌', '第 9 桌', '第 10 桌', '第 11 桌', '第 12 桌'],
+      ['第 13 桌', '第 14 桌', '第 15 桌', '第 16 桌', '第 17 桌'],
+      ['第 18 桌', '第 19 桌', '第 20 桌', '第 21 桌', '第 22 桌', '第 23 桌', '第 24 桌'],
+    ]
+
+    const layout = reconcileFloorColumnLayout(tables, '主桌', existingLayout, [6, 6, 6, 7])
+    const columns = buildIndependentFloorTableColumns(tables, '主桌', layout)
+
+    assert.deepEqual(layout[2], [
+      '第 13 桌',
+      '第 14 桌',
+      '第 15 桌',
+      '第 16 桌',
+      '第 17 桌',
+      null,
+    ])
+    assert.equal(layout[3][0], '第 18 桌')
+    assert.equal(columns[2].tables.at(-1).isEmptySlot, true)
+    assert.equal(columns[3].tables[0].name, '第 18 桌')
   })
 
   it('positions chairs evenly around a round table', () => {
