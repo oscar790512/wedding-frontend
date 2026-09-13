@@ -1848,7 +1848,7 @@ textarea.field-control {
 .table-card-controls {
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .table-card-controls label {
@@ -1863,6 +1863,10 @@ textarea.field-control {
   display: grid;
   gap: 10px;
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.guest-search-select .btn {
+  min-width: 96px;
 }
 
 .guest-search-empty {

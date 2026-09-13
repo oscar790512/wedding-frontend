@@ -27,6 +27,7 @@ const newTableCount = ref(1)
 const defaultCapacity = ref(12)
 const selectedGuestByTable = ref({})
 const guestSearchByTable = ref({})
+const assigningGuestByTable = ref({})
 const tableNameDrafts = ref({})
 const selectedTableName = ref('')
 const tableSettingsByName = computed(() =>
@@ -249,6 +250,8 @@ async function assignGuest(guestId, tableName) {
 }
 
 async function addSelectedGuest(tableName) {
+  if (assigningGuestByTable.value[tableName]) return
+
   const guestId =
     selectedGuestByTable.value[tableName] ||
     guestFromSearch(tableName)?.id ||
@@ -256,14 +259,26 @@ async function addSelectedGuest(tableName) {
 
   if (!guestId) return
 
-  await assignGuest(guestId, tableName)
-  selectedGuestByTable.value = {
-    ...selectedGuestByTable.value,
-    [tableName]: '',
+  assigningGuestByTable.value = {
+    ...assigningGuestByTable.value,
+    [tableName]: true,
   }
-  guestSearchByTable.value = {
-    ...guestSearchByTable.value,
-    [tableName]: '',
+
+  try {
+    await assignGuest(guestId, tableName)
+    selectedGuestByTable.value = {
+      ...selectedGuestByTable.value,
+      [tableName]: '',
+    }
+    guestSearchByTable.value = {
+      ...guestSearchByTable.value,
+      [tableName]: '',
+    }
+  } finally {
+    assigningGuestByTable.value = {
+      ...assigningGuestByTable.value,
+      [tableName]: false,
+    }
   }
 }
 
@@ -591,6 +606,7 @@ onMounted(loadPlanningData)
                 list="unassigned-guest-options"
                 placeholder="搜尋姓名、電話或分類"
                 :value="guestSearchByTable[selectedTable.name] || ''"
+                :disabled="assigningGuestByTable[selectedTable.name]"
                 @input="handleGuestSearchInput(selectedTable.name, $event.target.value)"
                 @keydown.enter.prevent="addSelectedGuest(selectedTable.name)"
               />
@@ -604,10 +620,10 @@ onMounted(loadPlanningData)
               <button
                 class="btn btn-primary"
                 type="button"
-                :disabled="!selectedGuestByTable[selectedTable.name]"
+                :disabled="!selectedGuestByTable[selectedTable.name] || assigningGuestByTable[selectedTable.name]"
                 @click="addSelectedGuest(selectedTable.name)"
               >
-                加入
+                {{ assigningGuestByTable[selectedTable.name] ? '加入中...' : '加入' }}
               </button>
             </div>
           </label>
