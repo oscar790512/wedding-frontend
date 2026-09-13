@@ -145,7 +145,10 @@ const floorTableRows = computed(() => {
 })
 
 function checkinChairClass(table, chair) {
-  return { 'is-arrived': chair <= table.arrivedAttendees }
+  return {
+    'is-arrived': chair <= table.arrivedAttendees,
+    'is-occupied': chair > table.arrivedAttendees && chair <= table.attendees,
+  }
 }
 
 function checkinTableMetric(table) {
