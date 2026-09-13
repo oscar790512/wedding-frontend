@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import jsQR from 'jsqr'
 
 import {
+  fetchAllGuests,
   fetchGuestByCheckinToken,
   fetchGuestPage,
   fetchTableSettings,
@@ -22,6 +23,9 @@ import { buildFloorTableRows } from '../utils/tablePlan'
 const route = useRoute()
 const router = useRouter()
 const guests = ref([])
+const tableGuests = ref([])
+const isLoadingTables = ref(true)
+const tableErrorMessage = ref('')
 const searchQuery = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
@@ -37,7 +41,7 @@ const giftInputVersions = new Map()
 const giftStatusClearTimers = new Map()
 const attendingOnly = ref(true)
 const sortOrder = ref('asc')
-const selectedTable = ref(null)
+const selectedTableName = ref(null)
 const tableSettings = ref([])
 const actualCountDrafts = ref({})
 const giftDrafts = ref({})
@@ -78,7 +82,7 @@ const visibleGuests = computed(() =>
 )
 
 const seatedAttendGuests = computed(() =>
-  guests.value.filter((guest) => guest.status === 'attend' && hasAssignedTable(guest)),
+  tableGuests.value.filter((guest) => guest.status === 'attend' && hasAssignedTable(guest)),
 )
 
 const tableSummary = computed(() => {
@@ -130,6 +134,10 @@ const tableSummary = computed(() => {
 
 const mainTable = computed(() =>
   tableSummary.value.find((table) => table.name === '主桌') || tableSummary.value[0] || null,
+)
+
+const selectedTable = computed(() =>
+  tableSummary.value.find((table) => table.name === selectedTableName.value) || null,
 )
 
 const floorTableRows = computed(() => {
@@ -225,6 +233,12 @@ function applyUpdatedGuest(updatedGuest, { syncActualDraft = true } = {}) {
   } else {
     guests.value = [updated, ...guests.value]
   }
+  const tableGuestIndex = tableGuests.value.findIndex((guest) => guest.id === updated.id)
+  if (tableGuestIndex >= 0) {
+    tableGuests.value[tableGuestIndex] = updated
+  } else if (updated.status === 'attend') {
+    tableGuests.value = [...tableGuests.value, updated]
+  }
   if (scannedGuest.value?.id === updated.id) {
     scannedGuest.value = updated
   }
@@ -239,27 +253,40 @@ async function loadGuests() {
   errorMessage.value = ''
 
   try {
-    const [guestPage, settingData] = await Promise.all([
-      fetchGuestPage({
-        q: searchQuery.value.trim(),
-        status: attendingOnly.value ? 'attend' : undefined,
-        sort: 'created_at',
-        order: sortOrder.value,
-        page: page.value,
-        page_size: pageSize.value,
-      }),
-      fetchTableSettings(),
-    ])
+    const guestPage = await fetchGuestPage({
+      q: searchQuery.value.trim(),
+      status: attendingOnly.value ? 'attend' : undefined,
+      sort: 'created_at',
+      order: sortOrder.value,
+      page: page.value,
+      page_size: pageSize.value,
+    })
     guests.value = guestPage.items.map(normalizeGuest)
     totalGuests.value = guestPage.total
     page.value = guestPage.page
     pageSize.value = guestPage.page_size
-    tableSettings.value = settingData
     syncActualCountDrafts(guests.value)
   } catch (error) {
     errorMessage.value = error.message
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadTableGuests() {
+  isLoadingTables.value = true
+  tableErrorMessage.value = ''
+  try {
+    const [allGuests, settingData] = await Promise.all([
+      fetchAllGuests({ status: 'attend', sort: 'created_at', order: 'asc' }),
+      fetchTableSettings(),
+    ])
+    tableGuests.value = allGuests.map(normalizeGuest)
+    tableSettings.value = settingData
+  } catch (error) {
+    tableErrorMessage.value = error.message
+  } finally {
+    isLoadingTables.value = false
   }
 }
 
@@ -478,11 +505,11 @@ function setActualCountDraftToExpected(guest) {
 }
 
 function openTableDialog(table) {
-  selectedTable.value = table
+  selectedTableName.value = table.name
 }
 
 function closeTableDialog() {
-  selectedTable.value = null
+  selectedTableName.value = null
 }
 
 function setActiveTab(tab) {
@@ -602,6 +629,10 @@ function buildScannedArrivalPayload() {
   }
 
   if (!hasAssignedTable(guest)) {
+    if (isLoadingTables.value || tableErrorMessage.value) {
+      scanErrorMessage.value = '桌次資料尚未就緒，請稍後再試或重新載入桌次資料。'
+      return null
+    }
     const assignedTable = findAvailableTable(actualAdults + actualChildren)
     if (!assignedTable) {
       scanErrorMessage.value = '目前沒有足夠空位可自動分桌，請先到桌次安排調整座位。'
@@ -845,7 +876,7 @@ watch(attendingOnly, resetPaginationAndLoadGuests)
 watch(sortOrder, resetPaginationAndLoadGuests)
 
 onMounted(async () => {
-  await loadGuests()
+  await Promise.all([loadGuests(), loadTableGuests()])
   if (route.params.token) {
     await resolveCheckinToken(route.params.token)
   }
@@ -936,7 +967,13 @@ onBeforeUnmount(() => {
         <span class="badge badge-warn">{{ tableSummary.length }} 個桌次</span>
       </div>
 
+      <p v-if="isLoadingTables" class="message">桌次資料載入中...</p>
+      <div v-else-if="tableErrorMessage">
+        <p class="message message--error">{{ tableErrorMessage }}</p>
+        <button class="btn btn-ghost" type="button" @click="loadTableGuests">重新載入桌次資料</button>
+      </div>
       <VenueFloorPlan
+        v-else
         :main-table="mainTable"
         :floor-table-rows="floorTableRows"
         :get-chair-class="checkinChairClass"
@@ -944,7 +981,7 @@ onBeforeUnmount(() => {
         @select-table="openTableDialog"
       />
 
-      <p v-if="!mainTable" class="message">
+      <p v-if="!isLoadingTables && !tableErrorMessage && !mainTable" class="message">
         尚未建立桌次設定
       </p>
 
