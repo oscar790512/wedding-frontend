@@ -1858,6 +1858,20 @@ textarea.field-control {
   gap: 8px;
 }
 
+.guest-search-select {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.guest-search-empty {
+  align-self: end;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
 .table-dialog-controls {
   align-items: end;
   display: grid;
@@ -3054,6 +3068,7 @@ textarea.field-control {
   .guest-row,
   .checkin-row,
   .table-card-controls,
+  .guest-search-select,
   .table-checkin-dialog,
   .seat-guest,
   .segmented--guests,

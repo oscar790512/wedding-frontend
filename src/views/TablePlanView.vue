@@ -26,6 +26,7 @@ const errorMessage = ref('')
 const newTableCount = ref(1)
 const defaultCapacity = ref(12)
 const selectedGuestByTable = ref({})
+const guestSearchByTable = ref({})
 const tableNameDrafts = ref({})
 const selectedTableName = ref('')
 const tableSettingsByName = computed(() =>
@@ -248,10 +249,20 @@ async function assignGuest(guestId, tableName) {
 }
 
 async function addSelectedGuest(tableName) {
-  const guestId = selectedGuestByTable.value[tableName]
+  const guestId =
+    selectedGuestByTable.value[tableName] ||
+    guestFromSearch(tableName)?.id ||
+    ''
+
+  if (!guestId) return
+
   await assignGuest(guestId, tableName)
   selectedGuestByTable.value = {
     ...selectedGuestByTable.value,
+    [tableName]: '',
+  }
+  guestSearchByTable.value = {
+    ...guestSearchByTable.value,
     [tableName]: '',
   }
 }
@@ -286,6 +297,62 @@ async function removeTable(tableName) {
 
 function guestSizeLabel(guest) {
   return `${guestAttendeeCount(guest)} 位`
+}
+
+function guestSearchLabel(guest) {
+  const details = [guestSizeLabel(guest), guest.phone, guest.guest_category]
+    .filter(Boolean)
+    .join(' · ')
+  return details ? `${guest.name}（${details}）` : guest.name
+}
+
+function normalizedSearch(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function guestMatchesSearch(guest, keyword) {
+  if (!keyword) return true
+  return [
+    guest.name,
+    guest.phone,
+    guest.guest_category,
+    guestSearchLabel(guest),
+  ]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(keyword))
+}
+
+function searchableUnassignedGuests(table) {
+  if (!table) return []
+
+  const keyword = normalizedSearch(guestSearchByTable.value[table.name])
+  return unassignedGuests.value
+    .filter((guest) => canAssignGuestToTable(guest, table))
+    .filter((guest) => guestMatchesSearch(guest, keyword))
+    .slice(0, 30)
+}
+
+function guestFromSearch(tableName) {
+  const keyword = normalizedSearch(guestSearchByTable.value[tableName])
+  if (!keyword) return null
+
+  return unassignedGuests.value.find((guest) => {
+    const label = normalizedSearch(guestSearchLabel(guest))
+    return label === keyword || normalizedSearch(guest.name) === keyword
+  }) || null
+}
+
+function handleGuestSearchInput(tableName, value) {
+  guestSearchByTable.value = {
+    ...guestSearchByTable.value,
+    [tableName]: value,
+  }
+
+  const matchedGuest = guestFromSearch(tableName)
+  selectedGuestByTable.value = {
+    ...selectedGuestByTable.value,
+    [tableName]: matchedGuest?.id || '',
+  }
 }
 
 function openTableDialog(table) {
@@ -518,22 +585,38 @@ onMounted(loadPlanningData)
         <div class="table-card-controls">
           <label>
             加入未分桌賓客
-            <select
-              v-model="selectedGuestByTable[selectedTable.name]"
-              class="field-control"
-              @change="addSelectedGuest(selectedTable.name)"
-            >
-              <option value="">選擇未分桌賓客</option>
-              <option
-                v-for="guest in unassignedGuests"
-                :key="guest.id"
-                :value="guest.id"
-                :disabled="!canAssignGuestToTable(guest, selectedTable)"
+            <div class="guest-search-select">
+              <input
+                class="field-control"
+                list="unassigned-guest-options"
+                placeholder="搜尋姓名、電話或分類"
+                :value="guestSearchByTable[selectedTable.name] || ''"
+                @input="handleGuestSearchInput(selectedTable.name, $event.target.value)"
+                @keydown.enter.prevent="addSelectedGuest(selectedTable.name)"
+              />
+              <datalist id="unassigned-guest-options">
+                <option
+                  v-for="guest in searchableUnassignedGuests(selectedTable)"
+                  :key="guest.id"
+                  :value="guestSearchLabel(guest)"
+                />
+              </datalist>
+              <button
+                class="btn btn-primary"
+                type="button"
+                :disabled="!selectedGuestByTable[selectedTable.name]"
+                @click="addSelectedGuest(selectedTable.name)"
               >
-                {{ guest.name }}（{{ guestSizeLabel(guest) }}）
-              </option>
-            </select>
+                加入
+              </button>
+            </div>
           </label>
+          <p
+            v-if="unassignedGuests.length > 0 && searchableUnassignedGuests(selectedTable).length === 0"
+            class="guest-search-empty"
+          >
+            找不到可加入這桌的未分桌賓客
+          </p>
         </div>
 
         <div class="seat-list">
