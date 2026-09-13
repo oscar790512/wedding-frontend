@@ -80,7 +80,7 @@ function selectTable(table) {
             class="round-table"
             :class="[
               getTableClass(table),
-              { 'round-table--offset-up': columnIndex === 1 || columnIndex === 3 },
+              { 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 },
             ]"
             type="button"
             @click="selectTable(table)"
