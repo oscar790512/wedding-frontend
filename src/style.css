@@ -1487,6 +1487,7 @@ textarea.field-control {
 
 .venue-table-column--4 {
   grid-column: 5;
+  transform: translateY(-284px);
 }
 
 .venue-table-row {
@@ -1670,6 +1671,10 @@ textarea.field-control {
     gap: 26px;
   }
 
+  .venue-table-column--4 {
+    transform: translateY(-252px);
+  }
+
   .venue-table-row {
     column-gap: 0;
     row-gap: 20px;
@@ -1719,6 +1724,10 @@ textarea.field-control {
 
   .venue-table-column {
     gap: 16px;
+  }
+
+  .venue-table-column--4 {
+    transform: translateY(-184px);
   }
 
   .venue-table-row {
@@ -1783,6 +1792,10 @@ textarea.field-control {
     gap: 8px;
   }
 
+  .venue-table-column--4 {
+    transform: translateY(-116px);
+  }
+
   .venue-table-row {
     column-gap: 0;
     row-gap: 4px;
@@ -1841,6 +1854,10 @@ textarea.field-control {
 
   .venue-table-column {
     gap: 6px;
+  }
+
+  .venue-table-column--4 {
+    transform: translateY(-100px);
   }
 
   .venue-table-row {
