@@ -1534,6 +1534,7 @@ textarea.field-control {
   --table-size: var(--venue-table-size);
   --chair-size: var(--venue-chair-size);
   --chair-radius: calc((var(--table-size) / 2) + var(--venue-chair-gap));
+  --table-name-base-size: var(--text-lg);
   align-items: center;
   background: color-mix(in oklab, var(--bg), white 38%);
   border: 1px solid color-mix(in oklab, var(--border), var(--fg) 8%);
@@ -1619,20 +1620,32 @@ textarea.field-control {
   gap: 2px;
   justify-items: center;
   line-height: 1.1;
+  max-height: 72%;
+  max-width: 70%;
+  min-width: 0;
+  overflow: hidden;
   pointer-events: none;
   text-align: center;
+  width: 70%;
 }
 
 .round-table__center strong {
+  display: block;
   font-family: var(--font-display);
-  font-size: var(--text-lg);
-  white-space: nowrap;
+  font-size: calc(var(--table-name-base-size) * var(--table-name-scale, 1));
+  line-height: 1.05;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .round-table__center span {
   color: var(--muted);
+  display: block;
   font-size: var(--text-sm);
   font-weight: 700;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .venue-aisle {
@@ -1745,8 +1758,8 @@ textarea.field-control {
     gap: 8px;
   }
 
-  .round-table__center strong {
-    font-size: var(--text-base);
+  .round-table {
+    --table-name-base-size: var(--text-base);
   }
 
   .round-table__center span,
@@ -1804,8 +1817,8 @@ textarea.field-control {
     gap: 6px;
   }
 
-  .round-table__center strong {
-    font-size: 11px;
+  .round-table {
+    --table-name-base-size: 11px;
   }
 
   .round-table__center span {
@@ -1865,8 +1878,8 @@ textarea.field-control {
     margin: calc(var(--chair-size) + var(--venue-chair-gap));
   }
 
-  .round-table__center strong {
-    font-size: 12px;
+  .round-table {
+    --table-name-base-size: 12px;
   }
 
   .round-table__center span,

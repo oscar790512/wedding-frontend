@@ -1,5 +1,5 @@
 <script setup>
-import { chairStyle } from '../utils/tablePlan'
+import { chairStyle, tableNameTextStyle } from '../utils/tablePlan'
 
 defineProps({
   mainTable: {
@@ -62,7 +62,7 @@ function selectTable(table) {
             aria-hidden="true"
           ></span>
           <span class="round-table__center">
-            <strong>{{ mainTable.name }}</strong>
+            <strong :style="tableNameTextStyle(mainTable.name)">{{ mainTable.name }}</strong>
             <span>{{ getTableMetric(mainTable) }}</span>
           </span>
         </button>
@@ -98,7 +98,7 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
-                <strong>{{ table.name }}</strong>
+                <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
             </button>
@@ -109,7 +109,7 @@ function selectTable(table) {
               aria-hidden="true"
             >
               <span v-if="showEmptySlots" class="round-table__center">
-                <strong>空位</strong>
+                <strong :style="tableNameTextStyle('空位')">空位</strong>
                 <span>第 {{ columnIndex + 1 }} 欄</span>
               </span>
             </div>
@@ -142,7 +142,7 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
-                <strong>{{ table.name }}</strong>
+                <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
             </button>
@@ -166,7 +166,7 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
-                <strong>{{ table.name }}</strong>
+                <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
             </button>
@@ -190,7 +190,7 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
-                <strong>{{ table.name }}</strong>
+                <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
             </button>

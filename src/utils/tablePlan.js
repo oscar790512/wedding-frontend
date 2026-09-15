@@ -180,6 +180,18 @@ export function normalizeFloorColumnLayout(floorColumnLayout) {
   )
 }
 
+export function tableNameTextStyle(tableName) {
+  const length = Array.from(String(tableName || '').trim()).length
+
+  if (length <= 4) return { '--table-name-scale': 1 }
+  if (length <= 6) return { '--table-name-scale': 0.9 }
+  if (length <= 8) return { '--table-name-scale': 0.78 }
+  if (length <= 10) return { '--table-name-scale': 0.68 }
+  if (length <= 14) return { '--table-name-scale': 0.58 }
+
+  return { '--table-name-scale': 0.5 }
+}
+
 export function chairStyle(index, total) {
   const angle = -90 + (360 / total) * index
   return {

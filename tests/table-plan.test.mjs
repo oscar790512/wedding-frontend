@@ -10,6 +10,7 @@ import {
   reconcileFloorColumnLayout,
   remainingSeats,
   tableCapacityErrorMessage,
+  tableNameTextStyle,
 } from '../src/utils/tablePlan.js'
 
 describe('table planning helpers', () => {
@@ -170,6 +171,12 @@ describe('table planning helpers', () => {
     assert.deepEqual(chairStyle(1, 4), {
       transform: 'rotate(0deg) translate(var(--chair-radius)) rotate(0deg)',
     })
+  })
+
+  it('scales long table names so they can wrap inside the table circle', () => {
+    assert.deepEqual(tableNameTextStyle('主桌'), { '--table-name-scale': 1 })
+    assert.deepEqual(tableNameTextStyle('女方親友大學同學好友桌'), { '--table-name-scale': 0.58 })
+    assert.deepEqual(tableNameTextStyle('女方親友大學同學好友超級長桌名'), { '--table-name-scale': 0.5 })
   })
 })
 
