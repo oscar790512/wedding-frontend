@@ -1565,6 +1565,14 @@ textarea.field-control {
   pointer-events: none;
 }
 
+.round-table--empty-slot-visible {
+  background: color-mix(in oklab, var(--surface), white 50%);
+  border-color: color-mix(in oklab, var(--border), transparent 12%);
+  border-style: dashed;
+  box-shadow: none;
+  color: var(--muted);
+}
+
 .round-table:hover {
   border-color: var(--accent);
   box-shadow: 0 20px 48px rgba(49, 40, 36, 0.18);
@@ -1980,7 +1988,7 @@ textarea.field-control {
   align-items: end;
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: minmax(180px, 1fr) 150px auto;
+  grid-template-columns: minmax(260px, 1.4fr) repeat(2, minmax(140px, 1fr)) auto auto;
 }
 
 .table-dialog-controls label {
@@ -1988,6 +1996,17 @@ textarea.field-control {
   display: grid;
   font-size: var(--text-sm);
   gap: 8px;
+}
+
+.table-name-editor__row {
+  align-items: center;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.table-name-editor__row .btn {
+  min-width: 104px;
 }
 
 .table-plan-venue-panel {
@@ -2012,6 +2031,12 @@ textarea.field-control {
   color: var(--muted);
   font-size: var(--text-sm);
   margin: calc(var(--space-2) * -1) 0 var(--space-3);
+}
+
+.panel-divider {
+  border: 0;
+  border-top: 1px solid var(--border-soft);
+  margin: var(--space-4) 0;
 }
 
 .table-name-editor {

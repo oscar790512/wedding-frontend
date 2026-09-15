@@ -4,40 +4,40 @@ import { computed, onMounted, ref } from 'vue'
 import {
   deleteTableSetting,
   fetchGuests,
+  fetchTableLayout,
   fetchTableSettings,
   patchGuest,
   renameTableSetting,
+  saveTableLayout,
   saveTableSetting,
 } from '../api/client'
 import AdminLayout from '../components/AdminLayout.vue'
 import VenueFloorPlan from '../components/VenueFloorPlan.vue'
 import {
   DEFAULT_FLOOR_COLUMN_COUNTS,
-  buildIndependentFloorTableColumns,
   buildFloorTableRows,
   canAssignGuestToTable,
   guestAttendeeCount,
   normalizeFloorColumnCounts,
-  normalizeFloorColumnLayout,
-  reconcileFloorColumnLayout,
   tableAttendeeCount,
   tableCapacityErrorMessage,
 } from '../utils/tablePlan'
 
-const TABLE_LAYOUT_STORAGE_KEY = 'wedding.floorColumnCounts'
-const TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY = 'wedding.floorColumnAssignments'
 const guests = ref([])
 const tableSettings = ref([])
+const tableLayoutSlots = ref([])
+const unplacedLayoutTables = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const newTableCount = ref(1)
 const defaultCapacity = ref(12)
-const floorColumnCounts = ref(loadFloorColumnCounts())
-const floorColumnLayout = ref(loadFloorColumnLayout())
+const floorColumnCounts = ref([...DEFAULT_FLOOR_COLUMN_COUNTS])
 const selectedGuestByTable = ref({})
+const selectedSlotByTable = ref({})
 const guestSearchByTable = ref({})
 const assigningGuestByTable = ref({})
 const tableNameDrafts = ref({})
+const renamingTableByName = ref({})
 const selectedTableName = ref('')
 const tableSettingsByName = computed(() =>
   new Map(tableSettings.value.map((setting) => [setting.table_name, setting])),
@@ -85,9 +85,29 @@ const floorTableRows = computed(() =>
   buildFloorTableRows(tables.value, mainTable.value?.name),
 )
 
-const floorTableColumns = computed(() =>
-  buildIndependentFloorTableColumns(tables.value, mainTable.value?.name, floorColumnLayout.value),
-)
+const floorTableColumns = computed(() => {
+  const tablesByName = new Map(tables.value.map((table) => [table.name, table]))
+  return Array.from({ length: 4 }, (_, columnIndex) => {
+    const columnNumber = columnIndex + 1
+    const slots = tableLayoutSlots.value
+      .filter((slot) => Number(slot.column_index) === columnNumber)
+      .toSorted((a, b) => Number(a.position_index) - Number(b.position_index))
+
+    return {
+      id: `table-column-${columnNumber}`,
+      tables: slots.map((slot) => {
+        const table = slot.table_name ? tablesByName.get(slot.table_name) : null
+        if (table) return table
+        return {
+          isEmptySlot: true,
+          id: slotKey(slot),
+          columnIndex: Number(slot.column_index),
+          positionIndex: Number(slot.position_index),
+        }
+      }),
+    }
+  })
+})
 
 const floorTableCount = computed(() =>
   mainTable.value ? Math.max(tables.value.length - 1, 0) : tables.value.length,
@@ -100,14 +120,43 @@ const floorColumnTotal = computed(() =>
 const floorLayoutMessage = computed(() => {
   if (floorColumnTotal.value === floorTableCount.value) return ''
   if (floorColumnTotal.value < floorTableCount.value) {
-    return `四欄目前設定 ${floorColumnTotal.value} 桌，尚有 ${floorTableCount.value - floorColumnTotal.value} 桌會先接在第 4 欄。`
+    return `座位圖目前有 ${floorColumnTotal.value} 個位置，尚有 ${floorTableCount.value - floorColumnTotal.value} 桌需要新增位置或留在待安排區。`
   }
   return `四欄目前設定 ${floorColumnTotal.value} 個位置，已超過一般桌數 ${floorTableCount.value} 桌，多出的欄位位置會留空。`
+})
+
+const emptyLayoutSlots = computed(() =>
+  tableLayoutSlots.value
+    .filter((slot) => !slot.table_name)
+    .toSorted(compareLayoutSlots),
+)
+
+const selectedTableSlotOptions = computed(() => {
+  const currentSlot = selectedTableLayoutSlot.value ? [selectedTableLayoutSlot.value] : []
+  return [...currentSlot, ...emptyLayoutSlots.value].toSorted(compareLayoutSlots)
 })
 
 const selectedTable = computed(() =>
   tables.value.find((table) => table.name === selectedTableName.value) || null,
 )
+
+const selectedTableLayoutSlot = computed(() =>
+  selectedTable.value
+    ? tableLayoutSlots.value.find((slot) => slot.table_name === selectedTable.value.name)
+    : null,
+)
+
+const isRenamingSelectedTable = computed(() =>
+  selectedTable.value ? Boolean(renamingTableByName.value[selectedTable.value.name]) : false,
+)
+
+const canRenameSelectedTable = computed(() => {
+  if (!selectedTable.value || isLockedTableName(selectedTable.value.name)) return false
+  if (isRenamingSelectedTable.value) return false
+
+  const draft = tableNameDraft(selectedTable.value.name).trim()
+  return Boolean(draft) && draft !== selectedTable.value.name
+})
 
 const assignedGuestCount = computed(() =>
   attendingGuests.value.length - unassignedGuests.value.length,
@@ -118,16 +167,24 @@ async function loadPlanningData() {
   errorMessage.value = ''
 
   try {
-    const [guestData, settingData] = await Promise.all([
+    const [guestData, settingData, layoutData] = await Promise.all([
       fetchGuests(''),
       fetchTableSettings(),
+      fetchTableLayout(),
     ])
     guests.value = guestData
     tableSettings.value = settingData
     tableNameDrafts.value = Object.fromEntries(
       settingData.map((setting) => [setting.table_name, setting.table_name]),
     )
-    syncFloorColumnLayout()
+    if ((layoutData.slots || []).length > 0) {
+      applyTableLayout(layoutData)
+    } else {
+      const initializedLayout = await saveTableLayout({
+        slots: createInitialLayoutSlots(settingData),
+      })
+      applyTableLayout(initializedLayout)
+    }
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -135,16 +192,21 @@ async function loadPlanningData() {
   }
 }
 
-async function renameTable(oldTableName, value) {
+async function renameTable(oldTableName) {
   if (isLockedTableName(oldTableName)) return
 
-  const newTableName = value.trim()
+  const newTableName = tableNameDraft(oldTableName).trim()
   if (!newTableName || newTableName === oldTableName) {
     tableNameDrafts.value = {
       ...tableNameDrafts.value,
       [oldTableName]: oldTableName,
     }
     return
+  }
+
+  renamingTableByName.value = {
+    ...renamingTableByName.value,
+    [oldTableName]: true,
   }
 
   try {
@@ -169,6 +231,7 @@ async function renameTable(oldTableName, value) {
     if (selectedTableName.value === oldTableName) {
       selectedTableName.value = newTableName
     }
+    await loadPlanningData()
     errorMessage.value = ''
   } catch (error) {
     tableNameDrafts.value = {
@@ -176,11 +239,18 @@ async function renameTable(oldTableName, value) {
       [oldTableName]: oldTableName,
     }
     errorMessage.value = error.message
+  } finally {
+    const { [oldTableName]: _renamed, ...nextRenamingTables } = renamingTableByName.value
+    renamingTableByName.value = nextRenamingTables
   }
 }
 
+function tableNameDraft(tableName) {
+  return tableNameDrafts.value[tableName] ?? tableName
+}
+
 function handleTableNameInput(tableName, value) {
-  if (isLockedTableName(tableName)) return
+  if (isLockedTableName(tableName) || renamingTableByName.value[tableName]) return
   tableNameDrafts.value = {
     ...tableNameDrafts.value,
     [tableName]: value,
@@ -191,62 +261,161 @@ function isLockedTableName(tableName) {
   return tableName === '主桌'
 }
 
-function loadFloorColumnCounts() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TABLE_LAYOUT_STORAGE_KEY) || 'null')
-    return normalizeFloorColumnCounts(saved?.length ? saved : DEFAULT_FLOOR_COLUMN_COUNTS)
-  } catch {
-    return [...DEFAULT_FLOOR_COLUMN_COUNTS]
-  }
+function compareLayoutSlots(a, b) {
+  const columnCompare = Number(a.column_index) - Number(b.column_index)
+  if (columnCompare !== 0) return columnCompare
+  return Number(a.position_index) - Number(b.position_index)
 }
 
-function loadFloorColumnLayout() {
-  try {
-    return normalizeFloorColumnLayout(
-      JSON.parse(localStorage.getItem(TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY) || 'null'),
-    )
-  } catch {
-    return normalizeFloorColumnLayout(null)
-  }
+function slotKey(slot) {
+  return `${slot.column_index}-${slot.position_index}`
 }
 
-function saveFloorColumnLayout(layout) {
-  floorColumnLayout.value = layout
-  localStorage.setItem(TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY, JSON.stringify(layout))
+function slotLabel(slot) {
+  return `第 ${slot.column_index} 欄第 ${slot.position_index} 位`
 }
 
-function syncFloorColumnLayout() {
-  saveFloorColumnLayout(
-    reconcileFloorColumnLayout(
-      tables.value,
-      mainTable.value?.name,
-      floorColumnLayout.value,
-      floorColumnCounts.value,
+function applyTableLayout(layoutData) {
+  tableLayoutSlots.value = (layoutData.slots || []).toSorted(compareLayoutSlots)
+  unplacedLayoutTables.value = layoutData.unplaced_tables || []
+  floorColumnCounts.value = normalizeFloorColumnCounts(
+    Array.from({ length: 4 }, (_, index) =>
+      tableLayoutSlots.value.filter((slot) => Number(slot.column_index) === index + 1).length,
     ),
   )
 }
 
-function updateFloorColumnCount(index, value) {
-  const nextCounts = normalizeFloorColumnCounts(floorColumnCounts.value)
-  const nextLayout = normalizeFloorColumnLayout(floorColumnLayout.value)
-  const nextCount = Math.max(Math.trunc(Number(value || 0) || 0), 0)
+function createInitialLayoutSlots(settings) {
+  const floorTableNames = settings
+    .map((setting) => setting.table_name)
+    .filter((tableName) => tableName !== '主桌')
+  const counts = normalizeFloorColumnCounts(DEFAULT_FLOOR_COLUMN_COUNTS)
+  const slots = []
+  let cursor = 0
 
-  nextLayout[index] = nextLayout[index].slice(0, nextCount)
-  while (nextLayout[index].length < nextCount) {
-    nextLayout[index].push(null)
+  for (let columnIndex = 0; columnIndex < counts.length; columnIndex += 1) {
+    const columnNumber = columnIndex + 1
+    const slotCount = counts[columnIndex]
+
+    for (let positionIndex = 1; positionIndex <= slotCount; positionIndex += 1) {
+      slots.push({
+        column_index: columnNumber,
+        position_index: positionIndex,
+        table_name: floorTableNames[cursor] || null,
+      })
+      cursor += 1
+    }
+  }
+
+  while (cursor < floorTableNames.length) {
+    const positionIndex = slots.filter((slot) => slot.column_index === 4).length + 1
+    slots.push({
+      column_index: 4,
+      position_index: positionIndex,
+      table_name: floorTableNames[cursor],
+    })
+    cursor += 1
+  }
+
+  return slots
+}
+
+function serializeLayoutSlots(slots = tableLayoutSlots.value) {
+  return slots.toSorted(compareLayoutSlots).map((slot, index, sortedSlots) => {
+    const sameColumnBefore = sortedSlots
+      .slice(0, index)
+      .filter((item) => Number(item.column_index) === Number(slot.column_index)).length
+
+    return {
+      column_index: Number(slot.column_index),
+      position_index: sameColumnBefore + 1,
+      table_name: slot.table_name || null,
+    }
+  })
+}
+
+async function saveLayoutSlots(slots = tableLayoutSlots.value) {
+  const layoutData = await saveTableLayout({ slots: serializeLayoutSlots(slots) })
+  applyTableLayout(layoutData)
+  errorMessage.value = ''
+}
+
+async function updateFloorColumnCount(index, value) {
+  const nextCounts = normalizeFloorColumnCounts(floorColumnCounts.value)
+  const nextCount = Math.max(Math.trunc(Number(value || 0) || 0), 0)
+  const columnNumber = index + 1
+  const currentColumnSlots = tableLayoutSlots.value
+    .filter((slot) => Number(slot.column_index) === columnNumber)
+    .toSorted(compareLayoutSlots)
+  let nextSlots = tableLayoutSlots.value.filter((slot) => Number(slot.column_index) !== columnNumber)
+  const resizedColumnSlots = currentColumnSlots.slice(0, nextCount)
+
+  while (resizedColumnSlots.length < nextCount) {
+    resizedColumnSlots.push({
+      column_index: columnNumber,
+      position_index: resizedColumnSlots.length + 1,
+      table_name: null,
+    })
   }
 
   nextCounts[index] = nextCount
   floorColumnCounts.value = nextCounts
-  localStorage.setItem(TABLE_LAYOUT_STORAGE_KEY, JSON.stringify(nextCounts))
-  saveFloorColumnLayout(
-    reconcileFloorColumnLayout(
-      tables.value,
-      mainTable.value?.name,
-      nextLayout,
-      nextCounts,
-    ),
+  nextSlots = [...nextSlots, ...resizedColumnSlots]
+
+  try {
+    await saveLayoutSlots(nextSlots)
+  } catch (error) {
+    errorMessage.value = error.message
+  }
+}
+
+async function placeTableInSlot(tableName, slotValue) {
+  if (!tableName || !slotValue) return
+  const [columnIndex, positionIndex] = slotValue.split('-').map(Number)
+  const nextSlots = tableLayoutSlots.value.map((slot) => {
+    if (slot.table_name === tableName) {
+      return { ...slot, table_name: null }
+    }
+    if (
+      Number(slot.column_index) === columnIndex
+      && Number(slot.position_index) === positionIndex
+    ) {
+      return { ...slot, table_name: tableName }
+    }
+    return slot
+  })
+
+  try {
+    await saveLayoutSlots(nextSlots)
+    selectedSlotByTable.value = {
+      ...selectedSlotByTable.value,
+      [tableName]: '',
+    }
+  } catch (error) {
+    errorMessage.value = error.message
+  }
+}
+
+async function updateTableLayoutSlot(tableName, slotValue) {
+  if (!tableName) return
+  if (!slotValue) {
+    await removeTableFromLayout(tableName)
+    return
+  }
+
+  await placeTableInSlot(tableName, slotValue)
+}
+
+async function removeTableFromLayout(tableName) {
+  const nextSlots = tableLayoutSlots.value.map((slot) =>
+    slot.table_name === tableName ? { ...slot, table_name: null } : slot,
   )
+
+  try {
+    await saveLayoutSlots(nextSlots)
+  } catch (error) {
+    errorMessage.value = error.message
+  }
 }
 
 function nextTableNumber() {
@@ -389,6 +558,7 @@ async function removeTable(tableName) {
     tableSettings.value = tableSettings.value.filter(
       (setting) => setting.table_name !== tableName,
     )
+    await loadPlanningData()
     if (selectedTableName.value === tableName) {
       closeTableDialog()
     }
@@ -594,6 +764,7 @@ onMounted(loadPlanningData)
           :get-chair-class="planningChairClass"
           :get-table-metric="planningTableMetric"
           :get-table-class="planningTableClass"
+          show-empty-slots
           @select-table="openTableDialog"
         />
 
@@ -603,6 +774,47 @@ onMounted(loadPlanningData)
       </section>
 
       <aside class="panel unassigned-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Layout Queue</p>
+            <h2>待安排桌次</h2>
+          </div>
+          <span class="badge badge-warn">{{ unplacedLayoutTables.length }} 桌</span>
+        </div>
+
+        <div class="unassigned-list">
+          <article
+            v-for="table in unplacedLayoutTables"
+            :key="`layout-${table.table_name}`"
+            class="seat-guest"
+          >
+            <div>
+              <strong>{{ table.table_name }}</strong>
+              <p class="guest-sub">每桌 {{ table.capacity }} 位</p>
+            </div>
+            <select
+              class="field-control"
+              :value="selectedSlotByTable[table.table_name] || ''"
+              @change="placeTableInSlot(table.table_name, $event.target.value)"
+            >
+              <option value="">選擇空位</option>
+              <option
+                v-for="slot in emptyLayoutSlots"
+                :key="slotKey(slot)"
+                :value="slotKey(slot)"
+              >
+                {{ slotLabel(slot) }}
+              </option>
+            </select>
+          </article>
+        </div>
+
+        <p v-if="unplacedLayoutTables.length === 0" class="message">
+          所有桌次都已放進座位圖
+        </p>
+
+        <hr class="panel-divider" />
+
         <div class="section-head">
           <div>
             <p class="eyebrow">Unassigned</p>
@@ -672,14 +884,41 @@ onMounted(loadPlanningData)
         <div class="table-dialog-controls">
           <label class="table-name-editor">
             桌次名稱
-            <input
+            <div class="table-name-editor__row">
+              <input
+                class="field-control"
+                :value="tableNameDraft(selectedTable.name)"
+                :disabled="isLockedTableName(selectedTable.name) || isRenamingSelectedTable"
+                @input="handleTableNameInput(selectedTable.name, $event.target.value)"
+              />
+              <button
+                class="btn btn-primary"
+                type="button"
+                :disabled="!canRenameSelectedTable"
+                @click="renameTable(selectedTable.name)"
+              >
+                {{ isRenamingSelectedTable ? '修改中...' : '確認修改' }}
+              </button>
+            </div>
+          </label>
+
+          <label>
+            座位圖位置
+            <select
               class="field-control"
-              :value="tableNameDrafts[selectedTable.name] ?? selectedTable.name"
-              :disabled="isLockedTableName(selectedTable.name)"
-              @input="handleTableNameInput(selectedTable.name, $event.target.value)"
-              @blur="renameTable(selectedTable.name, $event.target.value)"
-              @keydown.enter.prevent="renameTable(selectedTable.name, $event.target.value)"
-            />
+              :value="selectedTableLayoutSlot ? slotKey(selectedTableLayoutSlot) : ''"
+              :disabled="isLockedTableName(selectedTable.name) || isRenamingSelectedTable"
+              @change="updateTableLayoutSlot(selectedTable.name, $event.target.value)"
+            >
+              <option value="">待安排區</option>
+              <option
+                v-for="slot in selectedTableSlotOptions"
+                :key="slotKey(slot)"
+                :value="slotKey(slot)"
+              >
+                {{ slotLabel(slot) }}
+              </option>
+            </select>
           </label>
 
           <label>
@@ -696,10 +935,18 @@ onMounted(loadPlanningData)
           <button
             class="btn btn-ghost"
             type="button"
-            :disabled="isLockedTableName(selectedTable.name)"
+            :disabled="isLockedTableName(selectedTable.name) || isRenamingSelectedTable"
             @click="removeTable(selectedTable.name)"
           >
             刪除桌次
+          </button>
+          <button
+            class="btn btn-ghost"
+            type="button"
+            :disabled="isLockedTableName(selectedTable.name) || !selectedTableLayoutSlot || isRenamingSelectedTable"
+            @click="removeTableFromLayout(selectedTable.name)"
+          >
+            移到待安排區
           </button>
         </div>
 

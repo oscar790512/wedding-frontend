@@ -18,6 +18,25 @@ async function setupWorkbench(page) {
     ...Array.from({ length: 10 }, (_, i) => ({ table_name: `A${i + 1}`, capacity: 10 })),
     { table_name: 'B1', capacity: 2 },
   ] }))
+  await page.route('http://localhost:8000/api/admin/table-layout', (route) => route.fulfill({ json: {
+    slots: [
+      ...Array.from({ length: 10 }, (_, i) => ({
+        id: `slot-a-${i + 1}`,
+        layout_name: 'default',
+        column_index: i < 6 ? 1 : 2,
+        position_index: i < 6 ? i + 1 : i - 5,
+        table_name: `A${i + 1}`,
+      })),
+      {
+        id: 'slot-b1',
+        layout_name: 'default',
+        column_index: 3,
+        position_index: 1,
+        table_name: 'B1',
+      },
+    ],
+    unplaced_tables: [],
+  } }))
   await page.route('http://localhost:8000/api/admin/guests**', async (route) => {
     const request = route.request()
     if (request.method() === 'PATCH') {

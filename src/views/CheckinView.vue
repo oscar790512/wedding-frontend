@@ -7,6 +7,7 @@ import {
   fetchAllGuests,
   fetchGuestByCheckinToken,
   fetchGuestPage,
+  fetchTableLayout,
   fetchTableSettings,
   patchGuestCheckin,
 } from '../api/client'
@@ -19,16 +20,9 @@ import {
   phoneLastThreeDigits,
 } from '../utils/checkin'
 import {
-  DEFAULT_FLOOR_COLUMN_COUNTS,
-  buildIndependentFloorTableColumns,
   buildFloorTableRows,
-  normalizeFloorColumnCounts,
-  normalizeFloorColumnLayout,
-  reconcileFloorColumnLayout,
 } from '../utils/tablePlan'
 
-const TABLE_LAYOUT_STORAGE_KEY = 'wedding.floorColumnCounts'
-const TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY = 'wedding.floorColumnAssignments'
 const route = useRoute()
 const router = useRouter()
 const guests = ref([])
@@ -52,8 +46,7 @@ const attendingOnly = ref(true)
 const sortOrder = ref('asc')
 const selectedTableName = ref(null)
 const tableSettings = ref([])
-const floorColumnCounts = ref(loadFloorColumnCounts())
-const floorColumnLayout = ref(loadFloorColumnLayout())
+const tableLayoutSlots = ref([])
 const actualCountDrafts = ref({})
 const giftDrafts = ref({})
 const giftSaveStates = ref({})
@@ -156,36 +149,26 @@ const floorTableRows = computed(() => {
 })
 
 const floorTableColumns = computed(() =>
-  buildIndependentFloorTableColumns(
-    tableSummary.value,
-    mainTable.value?.name,
-    reconcileFloorColumnLayout(
-      tableSummary.value,
-      mainTable.value?.name,
-      floorColumnLayout.value,
-      floorColumnCounts.value,
-    ),
-  ),
+  Array.from({ length: 4 }, (_, columnIndex) => {
+    const columnNumber = columnIndex + 1
+    const tablesByName = new Map(tableSummary.value.map((table) => [table.name, table]))
+    const slots = tableLayoutSlots.value
+      .filter((slot) => Number(slot.column_index) === columnNumber)
+      .toSorted((a, b) => Number(a.position_index) - Number(b.position_index))
+
+    return {
+      id: `table-column-${columnNumber}`,
+      tables: slots.map((slot) => {
+        const table = slot.table_name ? tablesByName.get(slot.table_name) : null
+        if (table) return table
+        return {
+          isEmptySlot: true,
+          id: `empty-${slot.column_index}-${slot.position_index}`,
+        }
+      }),
+    }
+  }),
 )
-
-function loadFloorColumnCounts() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(TABLE_LAYOUT_STORAGE_KEY) || 'null')
-    return normalizeFloorColumnCounts(saved?.length ? saved : DEFAULT_FLOOR_COLUMN_COUNTS)
-  } catch {
-    return [...DEFAULT_FLOOR_COLUMN_COUNTS]
-  }
-}
-
-function loadFloorColumnLayout() {
-  try {
-    return normalizeFloorColumnLayout(
-      JSON.parse(localStorage.getItem(TABLE_LAYOUT_ASSIGNMENTS_STORAGE_KEY) || 'null'),
-    )
-  } catch {
-    return normalizeFloorColumnLayout(null)
-  }
-}
 
 function checkinChairClass(table, chair) {
   return {
@@ -323,12 +306,14 @@ async function loadTableGuests() {
   isLoadingTables.value = true
   tableErrorMessage.value = ''
   try {
-    const [allGuests, settingData] = await Promise.all([
+    const [allGuests, settingData, layoutData] = await Promise.all([
       fetchAllGuests({ status: 'attend', sort: 'created_at', order: 'asc' }),
       fetchTableSettings(),
+      fetchTableLayout(),
     ])
     tableGuests.value = allGuests.map(normalizeGuest)
     tableSettings.value = settingData
+    tableLayoutSlots.value = layoutData.slots || []
   } catch (error) {
     tableErrorMessage.value = error.message
   } finally {

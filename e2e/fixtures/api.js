@@ -177,6 +177,37 @@ export async function mockWeddingApi(page, options = {}) {
       return
     }
 
+    if (request.method() === 'GET' && path === '/api/admin/table-layout') {
+      await expect(request.headers().authorization).toBe('Bearer e2e-admin-token')
+      await route.fulfill(json({
+        slots: [
+          {
+            id: 'slot-a1',
+            layout_name: 'default',
+            column_index: 1,
+            position_index: 1,
+            table_name: 'A1',
+          },
+        ],
+        unplaced_tables: [],
+      }))
+      return
+    }
+
+    if (request.method() === 'PUT' && path === '/api/admin/table-layout') {
+      await expect(request.headers().authorization).toBe('Bearer e2e-admin-token')
+      const payload = request.postDataJSON()
+      await route.fulfill(json({
+        slots: payload.slots.map((slot, index) => ({
+          id: `slot-${index + 1}`,
+          layout_name: 'default',
+          ...slot,
+        })),
+        unplaced_tables: [],
+      }))
+      return
+    }
+
     await route.fulfill(json({ detail: `Unhandled E2E mock: ${request.method()} ${path}` }, 500))
   })
 

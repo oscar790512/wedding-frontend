@@ -26,6 +26,10 @@ defineProps({
     type: Function,
     default: () => '',
   },
+  showEmptySlots: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['select-table'])
@@ -104,9 +108,17 @@ function selectTable(table) {
             <div
               v-else
               class="round-table round-table--empty-slot"
-              :class="{ 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 }"
+              :class="[
+                { 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 },
+                { 'round-table--empty-slot-visible': showEmptySlots },
+              ]"
               aria-hidden="true"
-            ></div>
+            >
+              <span v-if="showEmptySlots" class="round-table__center">
+                <strong>空位</strong>
+                <span>第 {{ columnIndex + 1 }} 欄</span>
+              </span>
+            </div>
           </template>
         </div>
       </div>

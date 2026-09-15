@@ -199,6 +199,17 @@ export function fetchTableSettings() {
   return apiRequest('/api/admin/table-settings')
 }
 
+export function fetchTableLayout() {
+  return apiRequest('/api/admin/table-layout')
+}
+
+export function saveTableLayout(payload) {
+  return apiRequest('/api/admin/table-layout', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function saveTableSetting(payload) {
   return apiRequest('/api/admin/table-settings', {
     method: 'POST',
