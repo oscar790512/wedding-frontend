@@ -85,10 +85,7 @@ function selectTable(table) {
             <button
               v-if="!table.isEmptySlot"
               class="round-table"
-              :class="[
-                getTableClass(table),
-                { 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 },
-              ]"
+              :class="getTableClass(table)"
               type="button"
               @click="selectTable(table)"
             >
@@ -108,10 +105,7 @@ function selectTable(table) {
             <div
               v-else
               class="round-table round-table--empty-slot"
-              :class="[
-                { 'round-table--offset-up': columnIndex === 0 || columnIndex === 3 },
-                { 'round-table--empty-slot-visible': showEmptySlots },
-              ]"
+              :class="{ 'round-table--empty-slot-visible': showEmptySlots }"
               aria-hidden="true"
             >
               <span v-if="showEmptySlots" class="round-table__center">
