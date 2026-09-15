@@ -151,7 +151,12 @@ const floorTableRows = computed(() => {
 const floorTableColumns = computed(() =>
   Array.from({ length: 4 }, (_, columnIndex) => {
     const columnNumber = columnIndex + 1
-    const tablesByName = new Map(tableSummary.value.map((table) => [table.name, table]))
+    const mainTableName = mainTable.value?.name
+    const tablesByName = new Map(
+      tableSummary.value
+        .filter((table) => table.name !== mainTableName)
+        .map((table) => [table.name, table]),
+    )
     const slots = tableLayoutSlots.value
       .filter((slot) => Number(slot.column_index) === columnNumber)
       .toSorted((a, b) => Number(a.position_index) - Number(b.position_index))

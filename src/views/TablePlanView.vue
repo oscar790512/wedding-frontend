@@ -86,7 +86,12 @@ const floorTableRows = computed(() =>
 )
 
 const floorTableColumns = computed(() => {
-  const tablesByName = new Map(tables.value.map((table) => [table.name, table]))
+  const mainTableName = mainTable.value?.name
+  const tablesByName = new Map(
+    tables.value
+      .filter((table) => table.name !== mainTableName)
+      .map((table) => [table.name, table]),
+  )
   return Array.from({ length: 4 }, (_, columnIndex) => {
     const columnNumber = columnIndex + 1
     const slots = tableLayoutSlots.value
