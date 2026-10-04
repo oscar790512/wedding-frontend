@@ -1997,7 +1997,11 @@ textarea.field-control {
 }
 
 .table-name-editor__row .btn {
-  min-width: 104px;
+  min-width: 128px;
+}
+
+.table-number-editor {
+  min-width: 280px;
 }
 
 .table-plan-venue-panel {

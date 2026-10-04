@@ -38,6 +38,8 @@ const guestSearchByTable = ref({})
 const assigningGuestByTable = ref({})
 const tableNameDrafts = ref({})
 const renamingTableByName = ref({})
+const tableNumberDrafts = ref({})
+const savingTableNumberByName = ref({})
 const selectedTableName = ref('')
 const tableSettingsByName = computed(() =>
   new Map(tableSettings.value.map((setting) => [setting.table_name, setting])),
@@ -164,6 +166,18 @@ const canRenameSelectedTable = computed(() => {
   return Boolean(draft) && draft !== selectedTable.value.name
 })
 
+const isSavingSelectedTableNumber = computed(() =>
+  selectedTable.value ? Boolean(savingTableNumberByName.value[selectedTable.value.name]) : false,
+)
+
+const canUpdateSelectedTableNumber = computed(() => {
+  if (!selectedTable.value || isSavingSelectedTableNumber.value) return false
+
+  const draft = normalizeTableNumber(tableNumberDraft(selectedTable.value.name))
+  const current = selectedTable.value.tableNumber ?? null
+  return draft !== current
+})
+
 const assignedGuestCount = computed(() =>
   attendingGuests.value.length - unassignedGuests.value.length,
 )
@@ -182,6 +196,9 @@ async function loadPlanningData() {
     tableSettings.value = settingData
     tableNameDrafts.value = Object.fromEntries(
       settingData.map((setting) => [setting.table_name, setting.table_name]),
+    )
+    tableNumberDrafts.value = Object.fromEntries(
+      settingData.map((setting) => [setting.table_name, setting.table_number ?? '']),
     )
     if ((layoutData.slots || []).length > 0) {
       applyTableLayout(layoutData)
@@ -503,6 +520,11 @@ async function updateTableNumber(tableName, value) {
   const setting = tableSettingsByName.value.get(tableName)
   if (!setting) return
 
+  savingTableNumberByName.value = {
+    ...savingTableNumberByName.value,
+    [tableName]: true,
+  }
+
   try {
     const updated = await saveTableSetting({
       table_name: tableName,
@@ -510,9 +532,30 @@ async function updateTableNumber(tableName, value) {
       capacity: Number(setting.capacity || defaultCapacity.value || 12),
     })
     applyUpdatedTableSetting(updated)
+    tableNumberDrafts.value = {
+      ...tableNumberDrafts.value,
+      [updated.table_name]: updated.table_number ?? '',
+    }
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
+  } finally {
+    const { [tableName]: _saved, ...nextSavingTables } = savingTableNumberByName.value
+    savingTableNumberByName.value = nextSavingTables
+  }
+}
+
+function tableNumberDraft(tableName) {
+  const draft = tableNumberDrafts.value[tableName]
+  if (draft !== undefined) return draft
+  return tableSettingsByName.value.get(tableName)?.table_number ?? ''
+}
+
+function handleTableNumberInput(tableName, value) {
+  if (savingTableNumberByName.value[tableName]) return
+  tableNumberDrafts.value = {
+    ...tableNumberDrafts.value,
+    [tableName]: value,
   }
 }
 
@@ -526,6 +569,10 @@ function applyUpdatedTableSetting(updated) {
     )
   } else {
     tableSettings.value = [...tableSettings.value, updated]
+  }
+  tableNumberDrafts.value = {
+    ...tableNumberDrafts.value,
+    [updated.table_name]: updated.table_number ?? '',
   }
 }
 
@@ -971,16 +1018,28 @@ onMounted(loadPlanningData)
             </select>
           </label>
 
-          <label>
+          <label class="table-number-editor">
             桌子編號
-            <input
-              class="field-control"
-              type="number"
-              min="1"
-              placeholder="可留空"
-              :value="selectedTable.tableNumber || ''"
-              @change="updateTableNumber(selectedTable.name, $event.target.value)"
-            />
+            <div class="table-name-editor__row">
+              <input
+                class="field-control"
+                type="number"
+                min="1"
+                placeholder="可留空"
+                :value="tableNumberDraft(selectedTable.name)"
+                :disabled="isSavingSelectedTableNumber"
+                @input="handleTableNumberInput(selectedTable.name, $event.target.value)"
+                @keydown.enter.prevent="updateTableNumber(selectedTable.name, tableNumberDraft(selectedTable.name))"
+              />
+              <button
+                class="btn btn-primary"
+                type="button"
+                :disabled="!canUpdateSelectedTableNumber"
+                @click="updateTableNumber(selectedTable.name, tableNumberDraft(selectedTable.name))"
+              >
+                {{ isSavingSelectedTableNumber ? '修改中...' : '確認修改桌號' }}
+              </button>
+            </div>
           </label>
 
           <label>
