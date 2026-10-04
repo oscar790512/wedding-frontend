@@ -57,6 +57,26 @@ const summaryGroups = computed(() => {
       ],
     },
     {
+      title: '喜餅盒數',
+      items: [
+        {
+          label: '喜餅總盒數',
+          value: summary.value.cake_total_count,
+          hint: '出席現領與不出席寄送各 1 盒',
+        },
+        {
+          label: '男方喜餅',
+          value: summary.value.groom_cake_count,
+          hint: '依賓客分類為男方加總',
+        },
+        {
+          label: '女方喜餅',
+          value: summary.value.bride_cake_count,
+          hint: '依賓客分類為女方加總',
+        },
+      ],
+    },
+    {
       title: '現場與禮金',
       items: [
         {

@@ -182,6 +182,12 @@ const assignedGuestCount = computed(() =>
   attendingGuests.value.length - unassignedGuests.value.length,
 )
 
+const assignedAttendeeCount = computed(() =>
+  attendingGuests.value
+    .filter((guest) => guest.allocated_table)
+    .reduce((sum, guest) => sum + guestAttendeeCount(guest), 0),
+)
+
 async function loadPlanningData() {
   isLoading.value = true
   errorMessage.value = ''
@@ -764,7 +770,7 @@ onMounted(loadPlanningData)
       </div>
     </header>
 
-    <section class="grid-4 guest-stats table-plan-stats">
+    <section class="table-plan-stats guest-stats">
       <article class="metric">
         <p class="metric-label">桌數</p>
         <p class="metric-value">{{ tables.length }}</p>
@@ -776,6 +782,10 @@ onMounted(loadPlanningData)
       <article class="metric">
         <p class="metric-label">已安排組數</p>
         <p class="metric-value">{{ assignedGuestCount }}</p>
+      </article>
+      <article class="metric">
+        <p class="metric-label">已安排人數</p>
+        <p class="metric-value">{{ assignedAttendeeCount }}</p>
       </article>
       <article class="metric">
         <p class="metric-label">未分桌組數</p>

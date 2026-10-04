@@ -82,6 +82,9 @@ const summary = {
   total_gift_amount: 0,
   decline_request_cake_count: 1,
   decline_blessing_only_count: 0,
+  cake_total_count: 2,
+  groom_cake_count: 1,
+  bride_cake_count: 1,
 }
 
 function json(body, status = 200) {

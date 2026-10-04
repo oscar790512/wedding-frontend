@@ -980,6 +980,12 @@ textarea.field-control {
   margin-bottom: var(--space-4);
 }
 
+.table-plan-stats {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .guest-toolbar {
   margin-bottom: var(--space-4);
 }
