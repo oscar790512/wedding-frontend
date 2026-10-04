@@ -960,7 +960,7 @@ onMounted(loadPlanningData)
       role="presentation"
       @click.self="closeTableDialog"
     >
-      <section class="dialog-card" role="dialog" aria-modal="true">
+      <section class="dialog-card table-assignment-dialog" role="dialog" aria-modal="true">
         <div class="section-head">
           <div>
             <p class="eyebrow">Table Assignment</p>
@@ -1054,7 +1054,7 @@ onMounted(loadPlanningData)
           </label>
 
           <button
-            class="btn btn-ghost"
+            class="btn btn-ghost table-dialog-action"
             type="button"
             :disabled="isLockedTableName(selectedTable.name) || isRenamingSelectedTable"
             @click="removeTable(selectedTable.name)"
@@ -1062,7 +1062,7 @@ onMounted(loadPlanningData)
             刪除桌次
           </button>
           <button
-            class="btn btn-ghost"
+            class="btn btn-ghost table-dialog-action"
             type="button"
             :disabled="isLockedTableName(selectedTable.name) || !selectedTableLayoutSlot || isRenamingSelectedTable"
             @click="removeTableFromLayout(selectedTable.name)"

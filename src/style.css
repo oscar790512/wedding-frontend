@@ -1362,6 +1362,11 @@ textarea.field-control {
   width: min(100%, 840px);
 }
 
+.dialog-card.table-assignment-dialog {
+  max-width: min(1680px, calc(100vw - (var(--space-4) * 2)));
+  width: min(100%, 1680px);
+}
+
 .table-checkin-dialog {
   display: grid;
   gap: var(--space-4);
@@ -1979,7 +1984,7 @@ textarea.field-control {
   align-items: end;
   display: grid;
   gap: var(--space-3);
-  grid-template-columns: minmax(260px, 1.4fr) repeat(2, minmax(140px, 1fr)) auto auto;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
 }
 
 .table-dialog-controls label {
@@ -1991,17 +1996,27 @@ textarea.field-control {
 
 .table-name-editor__row {
   align-items: center;
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .table-name-editor__row .btn {
-  min-width: 128px;
+  flex: 0 0 auto;
+  min-width: 140px;
 }
 
 .table-number-editor {
-  min-width: 280px;
+  min-width: min(100%, 360px);
+}
+
+.table-name-editor__row .field-control {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+.table-dialog-action {
+  min-width: 180px;
 }
 
 .table-plan-venue-panel {
