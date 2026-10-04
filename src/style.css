@@ -1648,6 +1648,13 @@ textarea.field-control {
   overflow-wrap: anywhere;
 }
 
+.round-table__center .round-table__number {
+  color: var(--accent);
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  line-height: 1;
+}
+
 .venue-aisle {
   align-items: center;
   color: var(--muted);

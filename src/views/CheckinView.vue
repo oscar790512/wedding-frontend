@@ -95,6 +95,7 @@ const tableSummary = computed(() => {
   for (const setting of tableSettings.value) {
     tables.set(setting.table_name, {
       name: setting.table_name,
+      tableNumber: setting.table_number ?? null,
       capacity: Number(setting.capacity || 0),
       guests: [],
       arrivedGuests: [],

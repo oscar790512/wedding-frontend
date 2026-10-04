@@ -64,6 +64,7 @@ const tables = computed(() =>
 
     return {
       name: tableName,
+      tableNumber: setting?.table_number ?? null,
       capacity,
       guests: seatedGuests,
       attendeeCount,
@@ -457,7 +458,11 @@ async function createTables() {
       }
 
       created.push(tableName)
-      await saveTableSetting({ table_name: tableName, capacity })
+      await saveTableSetting({
+        table_name: tableName,
+        table_number: nextNumberForTableName(tableName),
+        capacity,
+      })
     }
     await loadPlanningData()
   } catch (error) {
@@ -467,23 +472,60 @@ async function createTables() {
 
 async function updateTableCapacity(tableName, value) {
   const capacity = Math.max(Number(value || 1), 1)
+  const setting = tableSettingsByName.value.get(tableName)
 
   try {
     const updated = await saveTableSetting({
       table_name: tableName,
+      table_number: setting?.table_number ?? null,
       capacity,
     })
-    const index = tableSettings.value.findIndex(
-      (setting) => setting.table_name === updated.table_name,
-    )
-    if (index >= 0) {
-      tableSettings.value[index] = updated
-    } else {
-      tableSettings.value.push(updated)
-    }
+    applyUpdatedTableSetting(updated)
     errorMessage.value = ''
   } catch (error) {
     errorMessage.value = error.message
+  }
+}
+
+function normalizeTableNumber(value) {
+  if (value === '' || value === null || value === undefined) return null
+  const number = Math.trunc(Number(value))
+  return Number.isFinite(number) && number > 0 ? number : null
+}
+
+function nextNumberForTableName(tableName) {
+  if (tableName === '主桌') return null
+  const match = tableName.match(/\d+/)
+  return match ? Number(match[0]) : null
+}
+
+async function updateTableNumber(tableName, value) {
+  const setting = tableSettingsByName.value.get(tableName)
+  if (!setting) return
+
+  try {
+    const updated = await saveTableSetting({
+      table_name: tableName,
+      table_number: normalizeTableNumber(value),
+      capacity: Number(setting.capacity || defaultCapacity.value || 12),
+    })
+    applyUpdatedTableSetting(updated)
+    errorMessage.value = ''
+  } catch (error) {
+    errorMessage.value = error.message
+  }
+}
+
+function applyUpdatedTableSetting(updated) {
+  const index = tableSettings.value.findIndex(
+    (setting) => setting.table_name === updated.table_name,
+  )
+  if (index >= 0) {
+    tableSettings.value = tableSettings.value.map((setting, settingIndex) =>
+      settingIndex === index ? updated : setting,
+    )
+  } else {
+    tableSettings.value = [...tableSettings.value, updated]
   }
 }
 
@@ -795,7 +837,10 @@ onMounted(loadPlanningData)
           >
             <div>
               <strong>{{ table.table_name }}</strong>
-              <p class="guest-sub">每桌 {{ table.capacity }} 位</p>
+              <p class="guest-sub">
+                <template v-if="table.table_number">編號 {{ table.table_number }} · </template>
+                每桌 {{ table.capacity }} 位
+              </p>
             </div>
             <select
               class="field-control"
@@ -924,6 +969,18 @@ onMounted(loadPlanningData)
                 {{ slotLabel(slot) }}
               </option>
             </select>
+          </label>
+
+          <label>
+            桌子編號
+            <input
+              class="field-control"
+              type="number"
+              min="1"
+              placeholder="可留空"
+              :value="selectedTable.tableNumber || ''"
+              @change="updateTableNumber(selectedTable.name, $event.target.value)"
+            />
           </label>
 
           <label>

@@ -37,6 +37,10 @@ const emit = defineEmits(['select-table'])
 function selectTable(table) {
   emit('select-table', table)
 }
+
+function tableNumberLabel(table) {
+  return table?.tableNumber ? `#${table.tableNumber}` : ''
+}
 </script>
 
 <template>
@@ -62,6 +66,9 @@ function selectTable(table) {
             aria-hidden="true"
           ></span>
           <span class="round-table__center">
+            <span v-if="tableNumberLabel(mainTable)" class="round-table__number">
+              {{ tableNumberLabel(mainTable) }}
+            </span>
             <strong :style="tableNameTextStyle(mainTable.name)">{{ mainTable.name }}</strong>
             <span>{{ getTableMetric(mainTable) }}</span>
           </span>
@@ -98,6 +105,9 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
+                <span v-if="tableNumberLabel(table)" class="round-table__number">
+                  {{ tableNumberLabel(table) }}
+                </span>
                 <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
@@ -142,6 +152,9 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
+                <span v-if="tableNumberLabel(table)" class="round-table__number">
+                  {{ tableNumberLabel(table) }}
+                </span>
                 <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
@@ -166,6 +179,9 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
+                <span v-if="tableNumberLabel(table)" class="round-table__number">
+                  {{ tableNumberLabel(table) }}
+                </span>
                 <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
@@ -190,6 +206,9 @@ function selectTable(table) {
                 aria-hidden="true"
               ></span>
               <span class="round-table__center">
+                <span v-if="tableNumberLabel(table)" class="round-table__number">
+                  {{ tableNumberLabel(table) }}
+                </span>
                 <strong :style="tableNameTextStyle(table.name)">{{ table.name }}</strong>
                 <span>{{ getTableMetric(table) }}</span>
               </span>
