@@ -1625,6 +1625,11 @@ textarea.field-control {
   border-color: color-mix(in oklab, #f0b53f, black 18%);
 }
 
+.round-table__chair.is-child {
+  background: #f4a6c1;
+  border-color: color-mix(in oklab, #f4a6c1, black 18%);
+}
+
 .round-table__center {
   align-items: center;
   display: grid;

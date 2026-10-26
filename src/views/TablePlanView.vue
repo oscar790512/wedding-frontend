@@ -19,6 +19,7 @@ import {
   canAssignGuestToTable,
   guestAttendeeCount,
   normalizeFloorColumnCounts,
+  plannedChildren,
   tableAttendeeCount,
   tableCapacityErrorMessage,
 } from '../utils/tablePlan'
@@ -70,6 +71,7 @@ const tables = computed(() =>
       capacity,
       guests: seatedGuests,
       attendeeCount,
+      childrenCount: seatedGuests.reduce((sum, guest) => sum + plannedChildren(guest), 0),
       percent: Math.min(Math.round((attendeeCount / capacity) * 100), 100),
       isOverCapacity: attendeeCount > capacity,
     }
@@ -737,7 +739,10 @@ function closeTableDialog() {
 }
 
 function planningChairClass(table, chair) {
-  return { 'is-occupied': chair <= Math.min(table.attendeeCount, table.capacity) }
+  return {
+    'is-occupied': chair <= Math.min(table.attendeeCount, table.capacity),
+    'is-child': chair <= table.childrenCount,
+  }
 }
 
 function planningTableMetric(table) {

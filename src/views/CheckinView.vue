@@ -103,6 +103,8 @@ const tableSummary = computed(() => {
       attendees: 0,
       arrivedAttendees: 0,
       pendingAttendees: 0,
+      arrivedChildren: 0,
+      pendingChildren: 0,
     })
   }
 
@@ -118,9 +120,11 @@ const tableSummary = computed(() => {
     if (guest.is_arrived) {
       table.arrivedGuests.push(guest)
       table.arrivedAttendees += groupSize
+      table.arrivedChildren += actualChildren(guest)
     } else {
       table.pendingGuests.push(guest)
       table.pendingAttendees += groupSize
+      table.pendingChildren += actualChildren(guest)
     }
   }
 
@@ -180,6 +184,9 @@ function checkinChairClass(table, chair) {
   return {
     'is-arrived': chair <= table.arrivedAttendees,
     'is-occupied': chair > table.arrivedAttendees && chair <= table.attendees,
+    'is-child': chair <= table.arrivedChildren
+      || (chair > table.arrivedAttendees
+        && chair <= table.arrivedAttendees + table.pendingChildren),
   }
 }
 
