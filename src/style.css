@@ -1625,7 +1625,7 @@ textarea.field-control {
   border-color: color-mix(in oklab, #f0b53f, black 18%);
 }
 
-.round-table__chair.is-child {
+.round-table__chair.is-child-seat {
   background: #f4a6c1;
   border-color: color-mix(in oklab, #f4a6c1, black 18%);
 }
