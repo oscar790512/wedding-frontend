@@ -5,6 +5,7 @@ import CheckinScanEntryView from '../views/CheckinScanEntryView.vue'
 import CheckinView from '../views/CheckinView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import GuestsView from '../views/GuestsView.vue'
+import EmailView from '../views/EmailView.vue'
 import InvitationView from '../views/InvitationView.vue'
 import LoginView from '../views/LoginView.vue'
 import RsvpView from '../views/RsvpView.vue'
@@ -15,6 +16,12 @@ import TablePlanView from '../views/TablePlanView.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
+    {
+      path: '/admin/email',
+      name: 'email',
+      component: EmailView,
+      meta: { requiresAuth: true, requiresRole: 'admin' },
+    },
     { path: '/', redirect: '/rsvp' },
     { path: '/invitation', name: 'invitation', component: InvitationView },
     { path: '/rsvp', name: 'rsvp', component: RsvpView },

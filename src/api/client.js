@@ -267,3 +267,25 @@ export function deleteGuest(guestId) {
     method: 'DELETE',
   })
 }
+
+export function fetchEmailOverview() {
+  return apiRequest('/api/admin/email/overview')
+}
+
+export function previewWeddingEmail(payload) {
+  return apiRequest('/api/admin/email/preview', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function sendWeddingEmail(payload) {
+  return apiRequest('/api/admin/email/send', { method: 'POST', body: JSON.stringify(payload) })
+}
+
+export function fetchEmailBatch(batchId) {
+  return apiRequest(`/api/admin/email/batches/${encodeURIComponent(batchId)}`)
+}
+
+export function resumeEmailBatch(batchId, retryFailed = false) {
+  return apiRequest(`/api/admin/email/batches/${encodeURIComponent(batchId)}/resume`, {
+    method: 'POST', body: JSON.stringify({ retry_failed: retryFailed }),
+  })
+}

@@ -34,7 +34,7 @@ const baseNavItems = [
 const navItems = computed(() => [
   ...baseNavItems,
   ...(role.value === 'admin'
-    ? [{ to: '/admin/settings', label: '系統設定' }]
+    ? [{ to: '/admin/email', label: 'Email 通知' }, { to: '/admin/settings', label: '系統設定' }]
     : []),
 ])
 
