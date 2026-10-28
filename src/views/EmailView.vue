@@ -121,12 +121,16 @@ async function poll() {
   if (!currentBatchId.value || disposed) return
   try {
     batch.value = await fetchEmailBatch(currentBatchId.value)
-    if (!disposed && (counts.value.pending || counts.value.sending) && !batch.value.last_error) {
+    error.value = ''
+    if (!disposed && (counts.value.sending || (counts.value.pending && !batch.value.last_error))) {
       pollTimer = setTimeout(poll, 2000)
     } else if (!disposed) {
       await refreshOverview()
     }
-  } catch (err) { error.value = err.message }
+  } catch (err) {
+    error.value = err.message
+    if (!disposed) pollTimer = setTimeout(poll, 5000)
+  }
 }
 async function resume(retryFailed = false) {
   busy.value = true

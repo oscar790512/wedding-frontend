@@ -99,3 +99,37 @@ test('the standalone wedding email stays readable on desktop and mobile', async 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.screenshot({ path: `../wedding-backend/previews/wedding-email-${testInfo.project.name}.png`, fullPage: true })
 })
+
+test('a paused batch keeps polling its sending message until an unconfirmed result is resolved', async ({ page }) => {
+  await setup(page)
+  let polls = 0
+  await page.route(`http://localhost:8000/api/admin/email/batches/${batchId}`, route => {
+    polls += 1
+    return route.fulfill({ json: {
+      batch_id: batchId, last_error: '寄送已暫停，請檢查寄送狀態後繼續；狀態待確認的信件不會自動重寄。',
+      deliveries: [{ id: 'delivery-1', guest_id: id(1), name: '王小明', email: 'guest1@example.com', status: polls === 1 ? 'sending' : 'unknown', error: polls === 1 ? null : '請先確認 Gmail 寄件備份' }],
+    } })
+  })
+  await page.getByRole('checkbox', { name: '選取 王小明', exact: true }).check()
+  await page.getByRole('button', { name: '一鍵寄送 Email（1 位）', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: '確認寄送給 1 位賓客', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '寄送進度 1 / 1' })).toBeVisible()
+  await expect(page.getByText('有 1 封無法確認是否已寄出', { exact: false })).toBeVisible()
+  expect(polls).toBeGreaterThanOrEqual(2)
+})
+
+test('a temporary status lookup failure resumes polling without resubmitting the email', async ({ page }) => {
+  const requests = await setup(page)
+  let polls = 0
+  await page.route(`http://localhost:8000/api/admin/email/batches/${batchId}`, route => {
+    polls += 1
+    if (polls === 1) return route.fulfill({ status: 503, json: { detail: '暫時無法讀取寄送狀態' } })
+    return route.fulfill({ json: { batch_id: batchId, last_error: null, deliveries: [{ id: 'delivery-1', guest_id: id(1), name: '王小明', email: 'guest1@example.com', status: 'sent' }] } })
+  })
+  await page.getByRole('checkbox', { name: '選取 王小明', exact: true }).check()
+  await page.getByRole('button', { name: '一鍵寄送 Email（1 位）', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: '確認寄送給 1 位賓客', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '寄送進度 1 / 1' })).toBeVisible({ timeout: 10000 })
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  expect(requests.filter(request => request.path.endsWith('/send'))).toHaveLength(1)
+})
