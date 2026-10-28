@@ -21,7 +21,7 @@ async function setup(page, smtpReady = true) {
   const deliveries = [
     { id: 'd1', guest_id: id(1), name: '王小明', email: 'guest1@example.com', status: 'sent' },
     { id: 'd2', guest_id: id(4), name: '賓客4', email: 'guest4@example.com', status: 'failed', error: 'SMTP 拒絕此封信件' },
-    { id: 'd3', guest_id: id(5), name: '賓客5', email: 'guest5@example.com', status: 'unknown', error: '請先查看寄件備份' },
+    { id: 'd3', guest_id: id(5), name: '賓客5', email: 'guest5@example.com', status: 'unknown', error: '請先查看寄件備份', attempted_at: '2026-10-28T09:26:46+00:00' },
   ]
   await page.route('http://localhost:8000/api/admin/email/**', async route => {
     const req = route.request(), path = new URL(req.url()).pathname
@@ -32,6 +32,11 @@ async function setup(page, smtpReady = true) {
       overview.batches = [{ id: batchId, created_at: '2026-10-26T16:00:00Z', last_error: null }]
       overview.deliveries = [...overview.deliveries, ...deliveries]
       return route.fulfill({ status: 202, json: { batch_id: batchId } })
+    }
+    if (path.endsWith('/resolve')) {
+      const row = deliveries.find(item => item.id === path.split('/').at(-2))
+      Object.assign(row, { status: 'failed', error: '已由管理員確認本次未寄出，可手動重試。' })
+      return route.fulfill({ json: { id: row.id, batch_id: batchId, status: row.status } })
     }
     if (path.endsWith('/resume')) return route.fulfill({ status: 202, json: { batch_id: batchId } })
     return route.fulfill({ json: { batch_id: batchId, last_error: null, deliveries } })
@@ -132,4 +137,30 @@ test('a temporary status lookup failure resumes polling without resubmitting the
   await expect(page.getByRole('heading', { name: '寄送進度 1 / 1' })).toBeVisible({ timeout: 10000 })
   await expect(page.getByRole('alert')).toHaveCount(0)
   expect(requests.filter(request => request.path.endsWith('/send'))).toHaveLength(1)
+})
+
+test('manual confirmation enables retry for an unknown delivery without itself sending', async ({ page }, testInfo) => {
+  const requests = await setup(page)
+  await page.getByRole('checkbox', { name: '選取 王小明', exact: true }).check()
+  await page.getByRole('button', { name: '一鍵寄送 Email（1 位）', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: '確認寄送給 1 位賓客', exact: true }).click()
+  await expect(page.getByRole('heading', { name: '寄送進度 3 / 3' })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: '選取 賓客5', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '確認 王小明 未寄出', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: '確認 賓客5 未寄出', exact: true }).click()
+  const markButton = page.getByRole('button', { name: '標記未寄出，允許重試', exact: true })
+  await expect(markButton).toBeDisabled()
+  expect(requests.filter(req => req.path.endsWith('/resolve'))).toHaveLength(0)
+  await page.getByRole('checkbox', { name: '我已確認這次未寄出', exact: true }).check()
+  await expect(markButton).toBeEnabled()
+  await page.locator('.email-resolution').screenshot({ path: `/tmp/wedding-email-manual-confirm-${testInfo.project.name}.png` })
+  await markButton.click()
+  await expect(page.getByRole('button', { name: '只重試失敗信件（2）', exact: true })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: '選取 賓客5', exact: true })).toBeEnabled()
+  const resolution = requests.find(req => req.path.endsWith('/resolve'))
+  expect(resolution.body).toEqual({ confirmed_not_sent: true, attempted_at: '2026-10-28T09:26:46+00:00' })
+  expect(requests.filter(req => req.path.endsWith('/send'))).toHaveLength(1)
+  expect(requests.filter(req => req.path.endsWith('/resume'))).toHaveLength(0)
+  await page.getByRole('button', { name: '只重試失敗信件（2）', exact: true }).click()
+  await expect.poll(() => requests.filter(req => req.path.endsWith('/resume')).length).toBe(1)
 })

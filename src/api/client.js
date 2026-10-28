@@ -289,3 +289,10 @@ export function resumeEmailBatch(batchId, retryFailed = false) {
     method: 'POST', body: JSON.stringify({ retry_failed: retryFailed }),
   })
 }
+
+export function confirmEmailNotSent(batchId, deliveryId, attemptedAt) {
+  return apiRequest(`/api/admin/email/batches/${encodeURIComponent(batchId)}/deliveries/${encodeURIComponent(deliveryId)}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ confirmed_not_sent: true, attempted_at: attemptedAt }),
+  })
+}

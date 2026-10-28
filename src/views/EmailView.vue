@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminLayout from '../components/AdminLayout.vue'
-import { fetchAllGuests, fetchEmailOverview, previewWeddingEmail, sendWeddingEmail, fetchEmailBatch, resumeEmailBatch } from '../api/client'
+import { confirmEmailNotSent, fetchAllGuests, fetchEmailOverview, previewWeddingEmail, sendWeddingEmail, fetchEmailBatch, resumeEmailBatch } from '../api/client'
 
 const guests = ref([])
 const overview = ref(null)
@@ -18,6 +18,9 @@ const previewRequest = ref(null)
 const batch = ref(null)
 const currentBatchId = ref('')
 const message = ref('')
+const resolvingDelivery = ref(null)
+const confirmedNotSent = ref(false)
+const manualConfirmCheckbox = ref(null)
 let pollTimer
 let disposed = false
 let previousFocus
@@ -43,6 +46,9 @@ const counts = computed(() => Object.fromEntries(Object.keys(labels).map(key => 
 const total = computed(() => batch.value?.deliveries.length || 0)
 const completed = computed(() => counts.value.sent + counts.value.failed + counts.value.unknown)
 const canSend = computed(() => overview.value?.smtp_ready && overview.value?.storage_ready)
+const canResolveCurrent = computed(() => resolvingDelivery.value && batch.value?.deliveries.some(
+  row => row.id === resolvingDelivery.value.id && row.status === 'unknown',
+))
 
 function invalidatePreview() { preview.value = null; previewRequest.value = null }
 watch(content, invalidatePreview, { deep: true })
@@ -141,7 +147,30 @@ async function resume(retryFailed = false) {
   } catch (err) { error.value = err.message }
   finally { busy.value = false }
 }
-async function changeBatch() { await poll() }
+async function openResolution(row) {
+  resolvingDelivery.value = { ...row, batch_id: currentBatchId.value }
+  confirmedNotSent.value = false
+  await nextTick()
+  manualConfirmCheckbox.value?.focus()
+}
+function closeResolution() {
+  resolvingDelivery.value = null
+  confirmedNotSent.value = false
+}
+async function markNotSent() {
+  if (!resolvingDelivery.value || !confirmedNotSent.value || busy.value) return
+  const row = resolvingDelivery.value
+  busy.value = true
+  error.value = ''
+  try {
+    await confirmEmailNotSent(row.batch_id, row.id, row.attempted_at)
+    closeResolution()
+    await poll()
+    message.value = '已標記未寄出。請按「只重試失敗信件」寄送，或重新選取賓客預覽後寄送。'
+  } catch (err) { error.value = err.message }
+  finally { busy.value = false }
+}
+async function changeBatch() { closeResolution(); await poll() }
 onMounted(load)
 onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.value) document.body.style.overflow = previousOverflow })
 </script>
@@ -201,8 +230,26 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
           <p v-if="batch.last_error" role="status" class="email-alert">{{ batch.last_error }}</p>
           <p v-if="!total">本次選取的賓客已有寄送紀錄，已略過，未重複寄送。</p>
           <div class="email-actions"><button v-if="counts.pending || counts.sending" class="btn btn-ghost" :disabled="busy || !canSend" @click="resume(false)">繼續寄送</button><button v-if="counts.failed" class="btn btn-ghost" :disabled="busy || !canSend" @click="resume(true)">只重試失敗信件（{{ counts.failed }}）</button><button class="btn btn-ghost" :disabled="busy" @click="poll">更新狀態</button></div>
-          <p v-if="counts.unknown" class="email-alert">有 {{ counts.unknown }} 封無法確認是否已寄出，請至 Gmail 寄件備份確認；系統不會自動重寄。</p>
-          <div class="email-log"><div v-for="row in batch.deliveries" :key="row.id" class="email-log-row"><span><strong>{{ row.name }}</strong><small>{{ row.email }}</small></span><span>{{ labels[row.status] }}<small v-if="row.error">{{ row.error }}</small></span></div></div>
+          <p v-if="counts.unknown" class="email-alert">有 {{ counts.unknown }} 封無法確認是否已寄出，請至 Gmail 寄件備份確認；系統不會自動重寄。確認未寄出後，可在下方逐封標記，再重試寄送。</p>
+          <div class="email-log">
+            <div v-for="row in batch.deliveries" :key="row.id" class="email-log-row">
+              <span><strong>{{ row.name }}</strong><small>{{ row.email }}</small></span>
+              <span>{{ labels[row.status] }}<small v-if="row.error">{{ row.error }}</small>
+                <button v-if="row.status === 'unknown'" class="btn btn-ghost email-resolution-button" type="button"
+                  :aria-label="`確認 ${row.name} 未寄出`" :disabled="busy" @click="openResolution(row)">確認未寄出</button>
+              </span>
+            </div>
+          </div>
+          <fieldset v-if="canResolveCurrent" class="email-resolution">
+            <legend>確認 {{ resolvingDelivery.name }} 的這次寄送結果</legend>
+            <p>{{ resolvingDelivery.email }}</p>
+            <p>請先核對 Gmail 寄件備份，確認這次信件沒有寄出。標記後仍需按「只重試失敗信件」才會寄送。</p>
+            <label class="email-resolution-check"><input ref="manualConfirmCheckbox" v-model="confirmedNotSent" type="checkbox" :disabled="busy">我已確認這次未寄出</label>
+            <div class="email-actions">
+              <button class="btn btn-primary" type="button" :disabled="!confirmedNotSent || busy" @click="markNotSent">{{ busy ? '處理中…' : '標記未寄出，允許重試' }}</button>
+              <button class="btn btn-ghost" type="button" :disabled="busy" @click="closeResolution">取消</button>
+            </div>
+          </fieldset>
         </section>
       </template>
     </div>
@@ -243,6 +290,12 @@ progress { display:block; width:100%; height:18px; accent-color:#934e44; margin:
 .email-counts { display:flex; flex-wrap:wrap; gap:16px }
 .email-log { max-height:400px; overflow:auto; margin-top:18px }
 .email-log-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding:14px 0; border-top:1px solid var(--border-soft) }
+.email-resolution-button { display:block; margin-top:12px }
+.email-resolution { min-width:0; margin:18px 0 0; padding:16px; border:1px solid var(--border); border-radius:8px; background:#fff6ed; overflow-wrap:anywhere }
+.email-resolution legend { padding:0 6px; font-weight:600 }
+.email-resolution p { margin:4px 0 12px; font-size:14px }
+.email-resolution-check { display:flex; align-items:center; gap:10px; font-weight:600 }
+.email-resolution-check input { width:18px; height:18px; flex-shrink:0; accent-color:#934e44 }
 .email-modal-backdrop { position:fixed; inset:0; z-index:1500; background:#20151199; display:grid; place-items:center; padding:20px }
 .email-modal { background:#fffaf7; border-radius:16px; width:min(100%,960px); max-height:94dvh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 90px #0004 }
 .email-modal-header,.email-preview-controls,.email-modal-footer { padding:16px 24px }
