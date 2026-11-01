@@ -77,7 +77,7 @@ test('loads all recipients and previews the actual personalized template before 
   const png = PNG.sync.read(Buffer.from(src.split(',')[1], 'base64'))
   expect(jsQR(new Uint8ClampedArray(png.data), png.width, png.height).data).toBe('wedding-checkin:preview-only-not-a-real-checkin-token')
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', await page.locator('body').evaluate(el => el.clientWidth))
-  await page.screenshot({ path: `/tmp/wedding-email-${testInfo.project.name}.png`, fullPage: true })
+  await testInfo.attach('email-preview', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
   await dialog.getByRole('button', { name: '確認寄送給 101 位賓客', exact: true }).click()
   await expect(page.getByRole('heading', { name: '寄送進度 3 / 3' })).toBeVisible()
   expect(requests.filter(req => req.path.endsWith('/send'))).toHaveLength(1)
@@ -106,7 +106,7 @@ test('the standalone wedding email stays readable on desktop and mobile', async 
   await page.goto('/email-template-preview')
   await expect(page.getByRole('heading', { name: '祺元 & 姵妤', exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  await page.screenshot({ path: `../wedding-backend/previews/wedding-email-${testInfo.project.name}.png`, fullPage: true })
+  await testInfo.attach('email-template', { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
 })
 
 test('a paused batch keeps polling its sending message until an unconfirmed result is resolved', async ({ page }) => {
@@ -157,7 +157,7 @@ test('manual confirmation enables retry for an unknown delivery without itself s
   expect(requests.filter(req => req.path.endsWith('/resolve'))).toHaveLength(0)
   await page.getByRole('checkbox', { name: '我已確認這次未寄出', exact: true }).check()
   await expect(markButton).toBeEnabled()
-  await page.locator('.email-resolution').screenshot({ path: `/tmp/wedding-email-manual-confirm-${testInfo.project.name}.png` })
+  await testInfo.attach('email-manual-confirmation', { body: await page.locator('.email-resolution').screenshot(), contentType: 'image/png' })
   await markButton.click()
   await expect(page.getByRole('button', { name: '只重試失敗信件（2）', exact: true })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: '選取 賓客5', exact: true })).toBeEnabled()
@@ -180,7 +180,9 @@ test('corrects an accepted recipient email and requires a fresh preview and expl
   await expect(page.getByRole('checkbox', { name: '選取 賓客3', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: '修正 Email 並重寄 賓客3', exact: true }).click()
   await page.getByLabel('重寄收件 Email', { exact: true }).fill('corrected@example.com')
-  await page.locator('form.email-resolution').screenshot({ path: `/private/tmp/wedding-email-resend-edit-${testInfo.project.name}.png` })
+  await testInfo.attach('resend-email-edit', {
+    body: await page.locator('form.email-resolution').screenshot(), contentType: 'image/png',
+  })
   await page.getByRole('button', { name: '儲存 Email 並預覽重寄', exact: true }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   expect(changes).toEqual([{ email: 'corrected@example.com' }])
@@ -199,7 +201,9 @@ test('corrects an accepted recipient email and requires a fresh preview and expl
   await expect(confirm).toBeDisabled()
   expect(changes).toHaveLength(1)
   await page.getByLabel('我已核對信箱，了解可能重複收到，確認重寄', { exact: true }).check()
-  await page.getByRole('dialog').screenshot({ path: `/private/tmp/wedding-email-resend-${testInfo.project.name}.png` })
+  await testInfo.attach('resend-email-confirmation', {
+    body: await page.getByRole('dialog').screenshot(), contentType: 'image/png',
+  })
   await confirm.click()
   const sent = requests.find(req => req.path.endsWith('/send')).body
   expect(sent.resend_confirmed).toBe(true)
