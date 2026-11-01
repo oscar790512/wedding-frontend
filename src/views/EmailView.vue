@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AdminLayout from '../components/AdminLayout.vue'
-import { confirmEmailNotSent, fetchAllGuests, fetchEmailOverview, previewWeddingEmail, sendWeddingEmail, fetchEmailBatch, resumeEmailBatch } from '../api/client'
+import { confirmEmailNotSent, fetchAllGuests, fetchEmailOverview, patchGuest, previewWeddingEmail, sendWeddingEmail, fetchEmailBatch, resumeEmailBatch } from '../api/client'
 
 const guests = ref([])
 const overview = ref(null)
@@ -21,6 +21,10 @@ const message = ref('')
 const resolvingDelivery = ref(null)
 const confirmedNotSent = ref(false)
 const manualConfirmCheckbox = ref(null)
+const resendTarget = ref(null)
+const resendEmail = ref('')
+const resendConfirmed = ref(false)
+const resendEmailInput = ref(null)
 let pollTimer
 let disposed = false
 let previousFocus
@@ -50,7 +54,7 @@ const canResolveCurrent = computed(() => resolvingDelivery.value && batch.value?
   row => row.id === resolvingDelivery.value.id && row.status === 'unknown',
 ))
 
-function invalidatePreview() { preview.value = null; previewRequest.value = null }
+function invalidatePreview() { preview.value = null; previewRequest.value = null; resendConfirmed.value = false }
 watch(content, invalidatePreview, { deep: true })
 watch(selected, invalidatePreview, { deep: true })
 watch(preview, async (value, oldValue) => {
@@ -66,7 +70,7 @@ watch(preview, async (value, oldValue) => {
   }
 })
 function trapFocus(event) {
-  const items = [...previewDialog.value.querySelectorAll('button:not(:disabled), select:not(:disabled), iframe')]
+  const items = [...previewDialog.value.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), iframe')]
   const first = items[0], last = items.at(-1)
   if (event.shiftKey && (document.activeElement === first || document.activeElement === previewDialog.value)) {
     event.preventDefault(); last?.focus()
@@ -92,28 +96,56 @@ async function load() {
   finally { loading.value = false }
 }
 async function showPreview() {
+  if (!selected.value.includes(previewGuestId.value)) previewGuestId.value = selected.value[0]
+  await requestPreview({ guest_ids: [...selected.value], content: { ...content.value }, preview_guest_id: previewGuestId.value })
+}
+async function requestPreview(payload) {
   busy.value = true
   error.value = ''
   message.value = ''
   try {
-    if (!selected.value.includes(previewGuestId.value)) previewGuestId.value = selected.value[0]
-    const payload = { guest_ids: [...selected.value], content: { ...content.value }, preview_guest_id: previewGuestId.value }
     const result = await previewWeddingEmail(payload)
     // Keep exactly the reviewed snapshot for confirmation, including recipient order/content.
     previewRequest.value = payload
+    resendConfirmed.value = false
     preview.value = result
+  } catch (err) { error.value = err.message }
+  finally { busy.value = false }
+}
+async function openResend(guest) {
+  resendTarget.value = { guest, delivery: deliveryByGuest.value.get(guest.id) }
+  resendEmail.value = guest.email || ''
+  await nextTick()
+  resendEmailInput.value?.focus()
+}
+async function previewResend() {
+  if (!resendTarget.value || busy.value) return
+  busy.value = true
+  error.value = ''
+  const { guest, delivery } = resendTarget.value
+  try {
+    const email = resendEmail.value.trim().toLowerCase()
+    if (email !== (guest.email || '').trim().toLowerCase()) {
+      const updated = await patchGuest(guest.id, { email })
+      Object.assign(guest, updated)
+    }
+    await requestPreview({ guest_ids: [guest.id], preview_guest_id: guest.id,
+      content: { ...content.value }, resend_delivery_id: delivery.id })
   } catch (err) { error.value = err.message }
   finally { busy.value = false }
 }
 async function confirmSend() {
   if (!preview.value || !previewRequest.value || busy.value) return
+  if (preview.value.resend && !resendConfirmed.value) return
   busy.value = true
   error.value = ''
   try {
-    const result = await sendWeddingEmail({ ...previewRequest.value, batch_id: preview.value.batch_id, preview_token: preview.value.preview_token })
+    const result = await sendWeddingEmail({ ...previewRequest.value, batch_id: preview.value.batch_id, preview_token: preview.value.preview_token,
+      ...(preview.value.resend ? { resend_confirmed: true } : {}) })
     currentBatchId.value = result.batch_id
     localStorage.setItem('weddingEmailBatch', result.batch_id)
     invalidatePreview()
+    resendTarget.value = null
     selected.value = []
     message.value = '已建立寄送批次，系統會在背景逐封寄送。'
     await poll()
@@ -190,7 +222,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
           <strong>{{ overview.smtp_ready ? `寄件帳號：${overview.sender}` : '尚未設定 Gmail SMTP' }}</strong>
           <span>系統上限：滾動 24 小時 {{ overview.daily_limit }} 次寄送嘗試；Gmail 的其他寄信也會占用帳號額度。</span>
           <p v-if="!overview.smtp_ready">寄信服務尚未就緒，請確認後端寄信設定。目前仍可預覽信件。</p>
-          <p v-if="!overview.storage_ready" class="email-alert">寄送紀錄資料表尚未建立，請先套用後端的 20261026_wedding_email.sql。完成前可預覽，無法寄送。</p>
+          <p v-if="!overview.storage_ready" class="email-alert">Email 資料庫結構尚未更新，請先部署 wedding-database 的最新 migration。完成前可預覽，無法寄送。</p>
         </section>
         <div class="email-grid">
           <section class="card email-recipients">
@@ -201,12 +233,27 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
             <div class="email-actions"><button class="btn btn-ghost" type="button" @click="selectVisible">全選搜尋結果</button><button class="btn btn-ghost" type="button" @click="selected = []">清除選取</button></div>
             <p class="email-small">完整名單 {{ guests.length }} 位 · 搜尋結果 {{ visibleGuests.length }} 位</p>
             <div class="email-guest-list">
-              <label v-for="guest in visibleGuests" :key="guest.id" class="email-guest" :class="{ 'is-disabled': disabledReason(guest) }">
+              <div v-for="guest in visibleGuests" :key="guest.id" class="email-guest">
+                <label class="email-guest-choice" :class="{ 'is-disabled': disabledReason(guest) }">
                 <input v-model="selected" type="checkbox" :value="guest.id" :disabled="!!disabledReason(guest)" :aria-label="`選取 ${guest.name}`">
                 <span><strong>{{ guest.name }}</strong><small>{{ guest.email || '尚未填寫 Email' }}</small><small v-if="disabledReason(guest)">{{ disabledReason(guest) }}</small></span>
-              </label>
+                </label>
+                <button v-if="deliveryByGuest.get(guest.id)?.status === 'sent' && guest.checkin_token" class="btn btn-ghost email-resend-button" type="button"
+                  :aria-label="`修正 Email 並重寄 ${guest.name}`" :disabled="busy || !canSend" @click="openResend(guest)">修正 Email／重寄</button>
+              </div>
               <p v-if="!visibleGuests.length">沒有符合條件的出席賓客。</p>
             </div>
+            <form v-if="resendTarget" class="email-resolution" @submit.prevent="previewResend">
+              <h3>重新寄送給 {{ resendTarget.guest.name }}</h3>
+              <p>上次寄送信箱：{{ resendTarget.delivery.email }}</p>
+              <p>若信箱填錯，請在下方修正；若信箱正確但未收到，也可再次寄送。原本的紀錄會保留。</p>
+              <label for="resend-email">重寄收件 Email</label>
+              <input id="resend-email" ref="resendEmailInput" v-model="resendEmail" type="email" required maxlength="255" :disabled="busy">
+              <div class="email-actions">
+                <button class="btn btn-primary" type="submit" :disabled="busy || !canSend">儲存 Email 並預覽重寄</button>
+                <button class="btn btn-ghost" type="button" :disabled="busy" @click="resendTarget = null">取消</button>
+              </div>
+            </form>
           </section>
           <section class="card email-editor">
             <p class="eyebrow">02 · YOUR LETTER</p><h2>婚禮通知模板</h2><p>已填好一版文稿，可直接調整；姓名、桌次與專屬報到碼會自動帶入。尚未安排座位時，信中會提示洽現場報到人員。</p>
@@ -215,7 +262,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
               <textarea v-if="multiline" :id="`mail-${key}`" v-model="content[key]" :rows="key === 'message' ? 7 : 5" />
               <input v-else :id="`mail-${key}`" v-model="content[key]" :type="key.endsWith('_url') ? 'url' : 'text'">
             </div>
-            <p class="email-small">已寄送、寄送中或待確認者不會再次加入。失敗信件可重試；若已修改賓客資料，請重新選取並預覽寄送。</p>
+            <p class="email-small">已寄送、寄送中或待確認者不會再次加入。已接受的信件可用名單旁的「修正 Email／重寄」逐位重新預覽；失敗信件可重試。</p>
             <button class="btn btn-primary" type="button" :disabled="!selected.length || busy" @click="showPreview">{{ busy ? '處理中…' : `一鍵寄送 Email（${selected.length} 位）` }}</button>
             <p class="email-small">點擊後先預覽，確認後才會真正寄出。</p>
           </section>
@@ -256,9 +303,9 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
     <div v-if="preview" class="email-modal-backdrop" @click.self="!busy && invalidatePreview()" @keydown.esc="!busy && invalidatePreview()">
       <section ref="previewDialog" class="email-modal" role="dialog" aria-modal="true" aria-labelledby="email-preview-title" tabindex="-1" @keydown.tab="trapFocus">
         <header class="email-modal-header"><div><h2 id="email-preview-title">寄送前預覽</h2><p>{{ preview.subject }} · 共 {{ preview.total }} 位收件人</p></div><button class="btn btn-ghost" :disabled="busy" @click="invalidatePreview">關閉</button></header>
-        <div class="email-preview-controls"><label for="preview-guest">切換預覽對象</label><select id="preview-guest" v-model="previewGuestId" :disabled="busy" @change="showPreview"><option v-for="guest in selectedGuests" :key="guest.id" :value="guest.id">{{ guest.name }} · {{ guest.email }}</option></select><p>收件人：{{ preview.recipient.name }} &lt;{{ preview.recipient.email }}&gt;</p></div>
+        <div class="email-preview-controls"><template v-if="!preview.resend"><label for="preview-guest">切換預覽對象</label><select id="preview-guest" v-model="previewGuestId" :disabled="busy" @change="showPreview"><option v-for="guest in selectedGuests" :key="guest.id" :value="guest.id">{{ guest.name }} · {{ guest.email }}</option></select></template><p v-if="preview.resend">上次寄送信箱：{{ preview.resend.previous_email }}</p><p>收件人：{{ preview.recipient.name }} &lt;{{ preview.recipient.email }}&gt;</p></div>
         <iframe title="Email 寄送樣板預覽" :srcdoc="preview.html" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" />
-        <footer class="email-modal-footer"><p>{{ canSend ? `每位賓客會收到自己的桌次與報到 QR Code，由 ${overview.sender} 寄出。` : '可先確認樣板，完成 SMTP 與資料表設定後即可寄送。' }}</p><button class="btn btn-primary" :disabled="busy || !canSend" @click="confirmSend">{{ busy ? '建立寄送批次中…' : `確認寄送給 ${preview.total} 位賓客` }}</button></footer>
+        <footer class="email-modal-footer"><div><p>{{ canSend ? `每位賓客會收到自己的桌次與報到 QR Code，由 ${overview.sender} 寄出。` : '可先確認樣板，完成 SMTP 與資料表設定後即可寄送。' }}</p><template v-if="preview.resend"><p>原信件可能已送達；此次會建立新的寄送紀錄。</p><label class="email-resolution-check"><input v-model="resendConfirmed" type="checkbox" :disabled="busy">我已核對信箱，了解可能重複收到，確認重寄</label></template></div><button class="btn btn-primary" :disabled="busy || !canSend || (!!preview.resend && !resendConfirmed)" @click="confirmSend">{{ busy ? '建立寄送批次中…' : preview.resend ? '確認重新寄送' : `確認寄送給 ${preview.total} 位賓客` }}</button></footer>
       </section>
     </div>
   </AdminLayout>
@@ -279,7 +326,9 @@ h2 { margin:4px 0 12px; font-size:23px }
 input:not([type=checkbox]),textarea,select { width:100%; max-width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:8px; padding:11px; background:#fffdf9; color:var(--fg); font:inherit }
 textarea { resize:vertical; line-height:1.8 }
 .email-guest-list { max-height:600px; overflow:auto }
-.email-guest { display:flex; gap:12px; align-items:center; border-top:1px solid var(--border-soft); padding:14px 4px; cursor:pointer }
+.email-guest { display:flex; flex-wrap:wrap; gap:12px; align-items:center; border-top:1px solid var(--border-soft); padding:14px 4px; cursor:pointer }
+.email-guest-choice { display:flex; gap:12px; align-items:center; flex:1; min-width:160px }
+.email-resend-button { font-size:12px; padding:8px 12px }
 .email-guest input { width:19px; height:19px; flex-shrink:0; accent-color:#934e44 }
 .email-guest span,.email-log-row span { min-width:0; overflow-wrap:anywhere }
 .email-guest small,.email-log-row small { display:block; color:var(--muted); font-size:13px }

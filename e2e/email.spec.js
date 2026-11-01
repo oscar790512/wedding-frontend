@@ -17,7 +17,7 @@ async function setup(page, smtpReady = true) {
     const p = Number(params.get('page') || 1), size = Number(params.get('page_size') || 100)
     return route.fulfill({ json: { items: guests.slice((p - 1) * size, p * size), total: guests.length, page: p, page_size: size } })
   })
-  const overview = { smtp_ready: smtpReady, sender: smtpReady ? 'sender@gmail.com' : '', storage_ready: true, daily_limit: 450, content: fixture.content, deliveries: [{ guest_id: id(3), status: 'sent' }], batches: [] }
+  const overview = { smtp_ready: smtpReady, sender: smtpReady ? 'sender@gmail.com' : '', storage_ready: true, daily_limit: 450, content: fixture.content, deliveries: [{ id: id(300), guest_id: id(3), email: 'guest3@example.com', status: 'sent' }], batches: [] }
   const deliveries = [
     { id: 'd1', guest_id: id(1), name: '王小明', email: 'guest1@example.com', status: 'sent' },
     { id: 'd2', guest_id: id(4), name: '賓客4', email: 'guest4@example.com', status: 'failed', error: 'SMTP 拒絕此封信件' },
@@ -27,7 +27,11 @@ async function setup(page, smtpReady = true) {
     const req = route.request(), path = new URL(req.url()).pathname
     if (req.method() === 'POST') requests.push({ path, body: req.postDataJSON() })
     if (path.endsWith('/overview')) return route.fulfill({ json: overview })
-    if (path.endsWith('/preview')) return route.fulfill({ json: { ...fixture, total: req.postDataJSON().guest_ids.length } })
+    if (path.endsWith('/preview')) {
+      const payload = req.postDataJSON()
+      return route.fulfill({ json: { ...fixture, total: payload.guest_ids.length,
+        ...(payload.resend_delivery_id ? { html: fixture.html.replaceAll('王小明', '賓客3'), recipient: { name: '賓客3', email: 'corrected@example.com' }, resend: { previous_email: 'guest3@example.com' } } : {}) } })
+    }
     if (path.endsWith('/send')) {
       overview.batches = [{ id: batchId, created_at: '2026-10-26T16:00:00Z', last_error: null }]
       overview.deliveries = [...overview.deliveries, ...deliveries]
@@ -163,4 +167,41 @@ test('manual confirmation enables retry for an unknown delivery without itself s
   expect(requests.filter(req => req.path.endsWith('/resume'))).toHaveLength(0)
   await page.getByRole('button', { name: '只重試失敗信件（2）', exact: true }).click()
   await expect.poll(() => requests.filter(req => req.path.endsWith('/resume')).length).toBe(1)
+})
+
+test('corrects an accepted recipient email and requires a fresh preview and explicit resend confirmation', async ({ page }, testInfo) => {
+  const requests = await setup(page)
+  const changes = []
+  await page.route(`http://localhost:8000/api/admin/guests/${id(3)}`, async route => {
+    changes.push(route.request().postDataJSON())
+    await route.fulfill({ json: { id: id(3), name: '賓客3', email: changes.at(-1).email, status: 'attend', checkin_token: 'token-3' } })
+  })
+  await page.getByLabel('搜尋姓名或 Email', { exact: true }).fill('賓客3')
+  await expect(page.getByRole('checkbox', { name: '選取 賓客3', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: '修正 Email 並重寄 賓客3', exact: true }).click()
+  await page.getByLabel('重寄收件 Email', { exact: true }).fill('corrected@example.com')
+  await page.locator('form.email-resolution').screenshot({ path: `/private/tmp/wedding-email-resend-edit-${testInfo.project.name}.png` })
+  await page.getByRole('button', { name: '儲存 Email 並預覽重寄', exact: true }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  expect(changes).toEqual([{ email: 'corrected@example.com' }])
+  const payload = requests.find(req => req.path.endsWith('/preview')).body
+  expect(payload.guest_ids).toEqual([id(3)])
+  expect(payload.resend_delivery_id).toBe(id(300))
+  const confirm = page.getByRole('button', { name: '確認重新寄送', exact: true })
+  await expect(confirm).toBeDisabled()
+  await expect(page.getByRole('dialog')).toContainText('guest3@example.com')
+  await expect(page.getByRole('dialog')).toContainText('corrected@example.com')
+  expect(requests.filter(req => req.path.endsWith('/send'))).toHaveLength(0)
+  await page.getByLabel('我已核對信箱，了解可能重複收到，確認重寄', { exact: true }).check()
+  await expect(confirm).toBeEnabled()
+  await page.getByRole('dialog').getByRole('button', { name: '關閉', exact: true }).click()
+  await page.getByRole('button', { name: '儲存 Email 並預覽重寄', exact: true }).click()
+  await expect(confirm).toBeDisabled()
+  expect(changes).toHaveLength(1)
+  await page.getByLabel('我已核對信箱，了解可能重複收到，確認重寄', { exact: true }).check()
+  await page.getByRole('dialog').screenshot({ path: `/private/tmp/wedding-email-resend-${testInfo.project.name}.png` })
+  await confirm.click()
+  const sent = requests.find(req => req.path.endsWith('/send')).body
+  expect(sent.resend_confirmed).toBe(true)
+  expect(sent.resend_delivery_id).toBe(id(300))
 })
