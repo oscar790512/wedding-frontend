@@ -65,7 +65,7 @@ test('loads all recipients and previews the actual personalized template before 
   expect(previewBody.guest_ids).not.toContain(id(2))
   expect(previewBody.guest_ids).not.toContain(id(3))
   const frame = page.frameLocator('iframe[title="Email 寄送樣板預覽"]')
-  for (const text of ['親愛的 王小明', '2026 年 11 月 8 日', '老新台菜', '開車赴約的小提醒', '@287rlhkg', '請提前將下方 QR Code']) {
+  for (const text of ['親愛的 王小明', '2026 年 11 月 8 日', '老新台菜', '開車赴約的小提醒', '為你留好的座位', '第 8 桌｜幸福滿桌', '@287rlhkg', '請提前將下方 QR Code']) {
     await expect(frame.locator('body')).toContainText(text)
   }
   await expect(frame.getByRole('link', { name: '開啟電子喜帖', exact: true })).toHaveAttribute('href', fixture.content.invitation_url)

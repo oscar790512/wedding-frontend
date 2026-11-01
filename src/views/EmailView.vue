@@ -209,7 +209,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
             </div>
           </section>
           <section class="card email-editor">
-            <p class="eyebrow">02 · YOUR LETTER</p><h2>婚禮通知模板</h2><p>已填好一版文稿，可直接調整；姓名與專屬報到碼會自動帶入。</p>
+            <p class="eyebrow">02 · YOUR LETTER</p><h2>婚禮通知模板</h2><p>已填好一版文稿，可直接調整；姓名、桌次與專屬報到碼會自動帶入。尚未安排座位時，信中會提示洽現場報到人員。</p>
             <div v-for="[key, label, multiline] in fields" :key="key" class="email-field">
               <label :for="`mail-${key}`">{{ label }}</label>
               <textarea v-if="multiline" :id="`mail-${key}`" v-model="content[key]" :rows="key === 'message' ? 7 : 5" />
@@ -258,7 +258,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
         <header class="email-modal-header"><div><h2 id="email-preview-title">寄送前預覽</h2><p>{{ preview.subject }} · 共 {{ preview.total }} 位收件人</p></div><button class="btn btn-ghost" :disabled="busy" @click="invalidatePreview">關閉</button></header>
         <div class="email-preview-controls"><label for="preview-guest">切換預覽對象</label><select id="preview-guest" v-model="previewGuestId" :disabled="busy" @change="showPreview"><option v-for="guest in selectedGuests" :key="guest.id" :value="guest.id">{{ guest.name }} · {{ guest.email }}</option></select><p>收件人：{{ preview.recipient.name }} &lt;{{ preview.recipient.email }}&gt;</p></div>
         <iframe title="Email 寄送樣板預覽" :srcdoc="preview.html" sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" />
-        <footer class="email-modal-footer"><p>{{ canSend ? `每位賓客會收到自己的報到 QR Code，由 ${overview.sender} 寄出。` : '可先確認樣板，完成 SMTP 與資料表設定後即可寄送。' }}</p><button class="btn btn-primary" :disabled="busy || !canSend" @click="confirmSend">{{ busy ? '建立寄送批次中…' : `確認寄送給 ${preview.total} 位賓客` }}</button></footer>
+        <footer class="email-modal-footer"><p>{{ canSend ? `每位賓客會收到自己的桌次與報到 QR Code，由 ${overview.sender} 寄出。` : '可先確認樣板，完成 SMTP 與資料表設定後即可寄送。' }}</p><button class="btn btn-primary" :disabled="busy || !canSend" @click="confirmSend">{{ busy ? '建立寄送批次中…' : `確認寄送給 ${preview.total} 位賓客` }}</button></footer>
       </section>
     </div>
   </AdminLayout>
