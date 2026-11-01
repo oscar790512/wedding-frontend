@@ -189,7 +189,7 @@ onBeforeUnmount(() => { disposed = true; clearTimeout(pollTimer); if (preview.va
         <section class="card email-connection">
           <strong>{{ overview.smtp_ready ? `寄件帳號：${overview.sender}` : '尚未設定 Gmail SMTP' }}</strong>
           <span>系統上限：滾動 24 小時 {{ overview.daily_limit }} 次寄送嘗試；Gmail 的其他寄信也會占用帳號額度。</span>
-          <p v-if="!overview.smtp_ready">請在後端環境變數設定 SMTP_USERNAME 與 SMTP_PASSWORD（Google 應用程式密碼）。目前仍可預覽信件。</p>
+          <p v-if="!overview.smtp_ready">寄信服務尚未就緒，請確認後端寄信設定。目前仍可預覽信件。</p>
           <p v-if="!overview.storage_ready" class="email-alert">寄送紀錄資料表尚未建立，請先套用後端的 20261026_wedding_email.sql。完成前可預覽，無法寄送。</p>
         </section>
         <div class="email-grid">
